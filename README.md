@@ -57,6 +57,25 @@ Risks:
 
 ---
 
+## 🎬 Mermaid example
+
+```text
+graph TD
+    user["user (actor)"]
+    igel["igel (endpoint)"]
+    citrix_gateway["citrix-gateway (access-gateway)"]
+    active_directory["active-directory (identity)"]
+    entra_id["entra-id (cloud-identity)"]
+    mfa["mfa (security-control)"]
+    user -->|signs in| igel
+    igel -->|starts session| citrix_gateway
+    citrix_gateway -->|validates identity| active_directory
+    active_directory -->|triggers MFA| mfa
+    active_directory -->|sync or federation| entra_id
+```
+
+---
+
 ## 🧰 Current scope
 
 ### Input
@@ -123,4 +142,3 @@ Current focus:
 ## 📄 License
 
 MIT
-
