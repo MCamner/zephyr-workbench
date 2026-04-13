@@ -22,9 +22,11 @@ The first version is intentionally small:
 ## Quick start
 
 ```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
 python -m pip install -e .
-zephyr summary examples/secure-workplace.yaml
-zephyr diagram examples/secure-workplace.yaml --format mermaid
+python -m zephyr.cli summary examples/secure-workplace.yaml
+python -m zephyr.cli diagram examples/secure-workplace.yaml --format mermaid
 ```
 
 ## Example output

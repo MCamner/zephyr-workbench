@@ -3,7 +3,7 @@ name = "zephyr-workbench"
 version = "0.1.0"
 description = "Architecture workbench for modeling, analyzing, and visualizing infrastructure systems and flows."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dependencies = [
   "pyyaml>=6.0",
 ]
