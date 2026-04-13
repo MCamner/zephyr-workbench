@@ -1,0 +1,32 @@
+name: identity-flow
+
+components:
+  - name: user
+    type: actor
+  - name: endpoint
+    type: endpoint
+  - name: idp
+    type: identity-provider
+  - name: mfa
+    type: security-control
+  - name: app
+    type: application
+
+flows:
+  - from: user
+    to: endpoint
+    label: starts session
+  - from: endpoint
+    to: idp
+    label: sends auth request
+  - from: idp
+    to: mfa
+    label: requests second factor
+  - from: idp
+    to: app
+    label: issues access token
+
+risks:
+  - id: R1
+    title: No fallback path for MFA
+    severity: medium

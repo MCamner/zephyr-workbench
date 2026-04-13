@@ -1,0 +1,40 @@
+name: secure-workplace
+
+components:
+  - name: user
+    type: actor
+  - name: igel
+    type: endpoint
+  - name: citrix-gateway
+    type: access-gateway
+  - name: active-directory
+    type: identity
+  - name: entra-id
+    type: cloud-identity
+  - name: mfa
+    type: security-control
+
+flows:
+  - from: user
+    to: igel
+    label: signs in
+  - from: igel
+    to: citrix-gateway
+    label: starts session
+  - from: citrix-gateway
+    to: active-directory
+    label: validates identity
+  - from: active-directory
+    to: mfa
+    label: triggers MFA
+  - from: active-directory
+    to: entra-id
+    label: sync or federation
+
+risks:
+  - id: R1
+    title: Citrix Gateway single point of failure
+    severity: high
+  - id: R2
+    title: MFA dependency not clearly documented
+    severity: medium

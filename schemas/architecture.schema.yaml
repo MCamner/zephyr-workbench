@@ -1,0 +1,18 @@
+required:
+  - name
+  - components
+  - flows
+
+component_fields:
+  - name
+  - type
+
+flow_fields:
+  - from
+  - to
+  - label
+
+risk_fields:
+  - id
+  - title
+  - severity
