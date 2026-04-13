@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import List
 
 
 @dataclass
@@ -24,6 +25,6 @@ class Risk:
 @dataclass
 class Architecture:
     name: str
-    components: list[Component] = field(default_factory=list)
-    flows: list[Flow] = field(default_factory=list)
-    risks: list[Risk] = field(default_factory=list)
+    components: List[Component] = field(default_factory=list)
+    flows: List[Flow] = field(default_factory=list)
+    risks: List[Risk] = field(default_factory=list)

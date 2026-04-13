@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Union
 
 import yaml
 
 from zephyr.models import Architecture, Component, Flow, Risk
 
 
-def load_architecture(path: str | Path) -> Architecture:
+def load_architecture(path: Union[str, Path]) -> Architecture:
     file_path = Path(path)
     data = yaml.safe_load(file_path.read_text(encoding="utf-8"))
 
