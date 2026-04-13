@@ -1,25 +1,36 @@
 # zephyr-workbench
 
-Architecture workbench for modeling, analyzing, and visualizing infrastructure systems and flows.
+> Architecture workbench for modeling, analyzing, and visualizing infrastructure systems and flows.
 
-## V1 scope
+Turn architecture ideas into structured models, summaries, and diagram-ready output.
 
-The first version is intentionally small:
+---
 
-- YAML in
-- text summary out
-- Mermaid diagram out
-- CLI first
+## ⚡ V1 at a glance
 
-## Project structure
+The first version is intentionally small and practical:
 
-- `zephyr/` contains the Python package and CLI
-- `examples/` contains sample architecture inputs
-- `schemas/` contains a human-readable V1 schema reference
-- `docs/diagrams/` is reserved for rendered outputs
-- `tests/` contains lightweight checks
+* YAML in
+* text summary out
+* Mermaid diagram out
+* CLI first
 
-## Quick start
+---
+
+## 🧠 What it does
+
+Zephyr Workbench helps you:
+
+* describe infrastructure systems in a structured format
+* analyze components, flows, and risks
+* generate architecture summaries
+* produce diagram-ready output
+
+It is designed for real-world architecture work where identity, endpoints, trust boundaries, and dependencies matter.
+
+---
+
+## 🚀 Quick start
 
 ```bash
 python3.11 -m venv .venv
@@ -29,7 +40,9 @@ python -m zephyr.cli summary examples/secure-workplace.yaml
 python -m zephyr.cli diagram examples/secure-workplace.yaml --format mermaid
 ```
 
-## Example output
+---
+
+## 🔥 Example output
 
 ```text
 Architecture: secure-workplace
@@ -41,3 +54,73 @@ Risks:
 - [HIGH] R1: Citrix Gateway single point of failure
 - [MEDIUM] R2: MFA dependency not clearly documented
 ```
+
+---
+
+## 🧰 Current scope
+
+### Input
+
+* YAML architecture definitions
+
+### Output
+
+* text summaries
+* Mermaid diagrams
+
+### Approach
+
+* CLI first
+* simple, inspectable files
+* practical architecture modeling over UI complexity
+
+---
+
+## 📁 Project structure
+
+```text
+zephyr/      Python package and CLI
+examples/    Sample architecture inputs
+schemas/     Human-readable V1 schema reference
+docs/        Reserved for rendered outputs and diagrams
+tests/       Lightweight checks
+```
+
+---
+
+## 🧪 Example use cases
+
+* model a secure workplace architecture
+* describe identity and access flows
+* identify dependencies and risks
+* generate first-pass architecture summaries
+* prepare systems for diagramming and documentation
+
+---
+
+## 🧭 Why
+
+Architecture work often ends up spread across notes, documents, and diagrams.
+
+Zephyr Workbench is an attempt to make that work more structured, repeatable, and tool-friendly.
+
+Instead of starting with slides, Zephyr starts with a simple model.
+
+---
+
+## 📄 Status
+
+Early V1.
+
+Current focus:
+
+* stabilizing the CLI
+* refining the YAML model
+* improving summary and diagram output
+
+---
+
+## 📄 License
+
+MIT
+
