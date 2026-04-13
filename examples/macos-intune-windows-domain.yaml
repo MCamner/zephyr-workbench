@@ -1,0 +1,50 @@
+name: macos-intune-windows-domain
+
+components:
+  - name: macbook
+    type: endpoint
+  - name: intune
+    type: device-management
+  - name: entra-id
+    type: cloud-identity
+  - name: conditional-access
+    type: access-policy
+  - name: windows-domain
+    type: on-prem-identity
+  - name: file-server
+    type: on-prem-resource
+  - name: vpn
+    type: remote-access
+  - name: certificate-service
+    type: pki
+
+flows:
+  - from: macbook
+    to: intune
+    label: enrollment
+  - from: macbook
+    to: entra-id
+    label: sign-in
+  - from: entra-id
+    to: conditional-access
+    label: evaluate policy
+  - from: macbook
+    to: vpn
+    label: connect for internal access
+  - from: macbook
+    to: file-server
+    label: access internal resources
+  - from: macbook
+    to: certificate-service
+    label: obtain device or user cert
+
+risks:
+  - id: R1
+    title: Unclear trust boundary between Entra-managed identity and on-prem domain access
+    severity: high
+  - id: R2
+    title: Certificate dependency not documented for secure access
+    severity: medium
+  - id: R3
+    title: Compliance state may not align with resource access expectations
+    severity: medium

@@ -114,6 +114,37 @@ tests/       Lightweight checks
 * identify dependencies and risks
 * generate first-pass architecture summaries
 * prepare systems for diagramming and documentation
+* model macOS management in Windows-based enterprise environments
+* map Intune-enrolled macOS devices across Entra ID, compliance, and on-prem resources
+
+---
+
+## 🏢 Real-world focus
+
+A strong target use case for Zephyr Workbench is enterprise macOS management in Microsoft-heavy environments.
+
+Example scenarios include:
+
+* Intune-enrolled macOS devices
+* Entra ID identity flows
+* access to on-prem Windows domain resources
+* Conditional Access and compliance dependencies
+* certificates, VPN, and secure access paths
+
+This makes Zephyr useful for modeling hybrid workplace architecture, not just abstract system diagrams.
+
+---
+
+## 🧩 Enterprise macOS example
+
+The repository now includes a first real-world hybrid example:
+
+```bash
+python -m zephyr.cli summary examples/macos-intune-windows-domain.yaml
+python -m zephyr.cli diagram examples/macos-intune-windows-domain.yaml --format mermaid
+```
+
+This example models a macOS device enrolled in Intune, authenticated through Entra ID, evaluated by Conditional Access, and reaching internal resources through VPN and certificate-backed access.
 
 ---
 
