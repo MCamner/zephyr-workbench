@@ -1,5 +1,172 @@
 # zephyr-workbench
 
+**CLI-based architecture workbench for modeling infrastructure, identity, and workplace systems using YAML — and turning them into summaries and diagrams.**
+
+---
+
+## ⚡ Why this exists
+
+Architecture work is often scattered across:
+- slides
+- diagrams
+- notes
+- tribal knowledge
+
+**Zephyr turns architecture into a structured, executable model.**
+
+👉 Describe systems once → generate summaries, flows, and diagrams consistently.
+
+---
+
+## 🧠 What it does
+
+Zephyr lets you:
+
+- model infrastructure and identity systems in YAML
+- define components, flows, and risks
+- generate architecture summaries
+- output diagram-ready Mermaid graphs
+
+Built for **real-world environments** where:
+- identity flows matter
+- endpoints are complex
+- trust boundaries are critical
+
+---
+
+## 🚀 Quick start
+
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+
+pip install -e .
+
+python -m zephyr.cli summary examples/secure-workplace.yaml
+python -m zephyr.cli diagram examples/secure-workplace.yaml --format mermaid
+```
+
+---
+
+## 🔥 Example output
+
+```
+Architecture: secure-workplace
+Components: 6
+Flows: 5
+Risks: 2
+
+Risks:
+- [HIGH] R1: Citrix Gateway single point of failure
+- [MEDIUM] R2: MFA dependency not clearly documented
+```
+
+---
+
+## 🎬 Mermaid output
+
+```mermaid
+graph TD
+    user["user (actor)"]
+    igel["igel (endpoint)"]
+    citrix_gateway["citrix-gateway (access-gateway)"]
+    active_directory["active-directory (identity)"]
+    entra_id["entra-id (cloud-identity)"]
+    mfa["mfa (security-control)"]
+
+    user -->|signs in| igel
+    igel -->|starts session| citrix_gateway
+    citrix_gateway -->|validates identity| active_directory
+    active_directory -->|triggers MFA| mfa
+    active_directory -->|sync or federation| entra_id
+```
+
+---
+
+## 📦 Core model (V1)
+
+Zephyr uses a simple architecture model:
+
+- **components** — systems, identities, endpoints, services
+- **flows** — interactions between components
+- **risks** — identified weaknesses or dependencies
+
+Input is plain YAML. Output is structured and repeatable.
+
+---
+
+## 🧪 Real-world example
+
+Included example:
+
+```bash
+python -m zephyr.cli summary examples/macos-intune-windows-domain.yaml
+python -m zephyr.cli diagram examples/macos-intune-windows-domain.yaml --format mermaid
+```
+
+Models:
+
+- macOS devices enrolled in Intune
+- Entra ID identity flows
+- Conditional Access
+- VPN and certificate-based access
+- On-prem Windows domain integration
+
+👉 This is where Zephyr is strongest.
+
+---
+
+## 🧰 Scope
+
+**Input**
+- YAML architecture definitions
+
+**Output**
+- text summaries
+- Mermaid diagrams
+
+**Approach**
+- CLI-first
+- simple files
+- no UI overhead
+
+---
+
+## 🏗️ Project structure
+
+```
+zephyr/      CLI and core logic
+examples/    sample architectures
+schemas/     V1 model reference
+tests/       validation and behavior checks
+```
+
+---
+
+## 🧭 Philosophy
+
+- Model first, diagram later
+- Keep systems understandable
+- Prefer structure over slides
+- Build for real operations, not theory
+
+---
+
+## 📄 Status
+
+Early V1.
+
+Focus:
+- validation
+- stable CLI
+- better summaries and diagrams
+
+---
+
+## 📄 License
+
+MIT# zephyr-workbench
+
 > Architecture workbench for modeling, analyzing, and visualizing infrastructure systems and flows.
 
 Turn architecture ideas into structured models, summaries, and diagram-ready output.
