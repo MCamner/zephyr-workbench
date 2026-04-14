@@ -13,6 +13,20 @@ from zephyr.models import (
     Flow,
     Risk,
 )
+from zephyr.datamodel import (
+    AUTH_TYPES,
+    CONTROL_TYPES,
+    CRITICALITIES,
+    DOMAINS,
+    ENCRYPTION_TYPES,
+    ENVIRONMENTS,
+    EXPOSURES,
+    FLOW_DIRECTIONS,
+    IMPACTS,
+    LIKELIHOODS,
+    LIFECYCLES,
+    STAKEHOLDER_ROLES,
+)
 
 
 class ValidationError(ValueError):
@@ -57,6 +71,10 @@ def validate_architecture_data(data: dict[str, Any]) -> None:
     components = data.get("components", [])
     flows = data.get("flows", [])
     risks = data.get("risks", [])
+    controls = data.get("controls", [])
+    stakeholders = data.get("stakeholders", [])
+    domains = data.get("domains")
+    meta = data.get("meta")
 
     if "components" in data and not isinstance(components, list):
         errors.append("field 'components' must be a list")
@@ -71,6 +89,60 @@ def validate_architecture_data(data: dict[str, Any]) -> None:
     if "risks" in data and not isinstance(risks, list):
         errors.append("field 'risks' must be a list")
         risks = []
+
+    if domains is not None:
+        if not isinstance(domains, list):
+            errors.append("field 'domains' must be a list")
+            domains = []
+        else:
+            for index, domain in enumerate(domains, start=1):
+                if not isinstance(domain, str):
+                    errors.append(f"domains[{index}] must be a string")
+                elif domain not in DOMAINS:
+                    allowed = ", ".join(DOMAINS)
+                    errors.append(
+                        f"domains[{index}] '{domain}' is invalid; expected one of: {allowed}"
+                    )
+
+    if meta is not None:
+        if not isinstance(meta, dict):
+            errors.append("field 'meta' must be a mapping")
+        else:
+            owner = meta.get("owner")
+            if owner is not None and not isinstance(owner, str):
+                errors.append("meta.owner must be a string")
+
+            criticality = meta.get("criticality")
+            if criticality is not None:
+                if not isinstance(criticality, str):
+                    errors.append("meta.criticality must be a string")
+                elif criticality not in CRITICALITIES:
+                    allowed = ", ".join(CRITICALITIES)
+                    errors.append(
+                        f"meta.criticality '{criticality}' is invalid; expected one of: {allowed}"
+                    )
+
+            environment = meta.get("environment")
+            if environment is not None:
+                if not isinstance(environment, list):
+                    errors.append("meta.environment must be a list")
+                else:
+                    for index, value in enumerate(environment, start=1):
+                        if not isinstance(value, str):
+                            errors.append(f"meta.environment[{index}] must be a string")
+                        elif value not in ENVIRONMENTS:
+                            allowed = ", ".join(ENVIRONMENTS)
+                            errors.append(
+                                f"meta.environment[{index}] '{value}' is invalid; expected one of: {allowed}"
+                            )
+
+    if "controls" in data and not isinstance(controls, list):
+        errors.append("field 'controls' must be a list")
+        controls = []
+
+    if "stakeholders" in data and not isinstance(stakeholders, list):
+        errors.append("field 'stakeholders' must be a list")
+        stakeholders = []
 
     component_names: set[str] = set()
     risk_ids: set[str] = set()
@@ -103,6 +175,50 @@ def validate_architecture_data(data: dict[str, Any]) -> None:
                 f"{location}.type '{component_type}' is invalid; expected one of: {allowed}"
             )
 
+        component_domain = component.get("domain")
+        if component_domain is not None:
+            if not isinstance(component_domain, str):
+                errors.append(f"{location}.domain must be a string")
+            elif component_domain not in DOMAINS:
+                allowed = ", ".join(DOMAINS)
+                errors.append(
+                    f"{location}.domain '{component_domain}' is invalid; expected one of: {allowed}"
+                )
+
+        component_description = component.get("description")
+        if component_description is not None and not isinstance(component_description, str):
+            errors.append(f"{location}.description must be a string")
+
+        component_criticality = component.get("criticality")
+        if component_criticality is not None:
+            if not isinstance(component_criticality, str):
+                errors.append(f"{location}.criticality must be a string")
+            elif component_criticality not in CRITICALITIES:
+                allowed = ", ".join(CRITICALITIES)
+                errors.append(
+                    f"{location}.criticality '{component_criticality}' is invalid; expected one of: {allowed}"
+                )
+
+        component_exposure = component.get("exposure")
+        if component_exposure is not None:
+            if not isinstance(component_exposure, str):
+                errors.append(f"{location}.exposure must be a string")
+            elif component_exposure not in EXPOSURES:
+                allowed = ", ".join(EXPOSURES)
+                errors.append(
+                    f"{location}.exposure '{component_exposure}' is invalid; expected one of: {allowed}"
+                )
+
+        component_lifecycle = component.get("lifecycle")
+        if component_lifecycle is not None:
+            if not isinstance(component_lifecycle, str):
+                errors.append(f"{location}.lifecycle must be a string")
+            elif component_lifecycle not in LIFECYCLES:
+                allowed = ", ".join(LIFECYCLES)
+                errors.append(
+                    f"{location}.lifecycle '{component_lifecycle}' is invalid; expected one of: {allowed}"
+                )
+
     for index, flow in enumerate(flows, start=1):
         location = f"flows[{index}]"
         if not isinstance(flow, dict):
@@ -129,6 +245,40 @@ def validate_architecture_data(data: dict[str, Any]) -> None:
         label = flow.get("label", "")
         if label and not isinstance(label, str):
             errors.append(f"{location}.label must be a string when provided")
+
+        protocol = flow.get("protocol")
+        if protocol is not None and not isinstance(protocol, str):
+            errors.append(f"{location}.protocol must be a string")
+
+        authentication = flow.get("authentication")
+        if authentication is not None:
+            if not isinstance(authentication, str):
+                errors.append(f"{location}.authentication must be a string")
+            elif authentication not in AUTH_TYPES:
+                allowed = ", ".join(AUTH_TYPES)
+                errors.append(
+                    f"{location}.authentication '{authentication}' is invalid; expected one of: {allowed}"
+                )
+
+        encryption = flow.get("encryption")
+        if encryption is not None:
+            if not isinstance(encryption, str):
+                errors.append(f"{location}.encryption must be a string")
+            elif encryption not in ENCRYPTION_TYPES:
+                allowed = ", ".join(ENCRYPTION_TYPES)
+                errors.append(
+                    f"{location}.encryption '{encryption}' is invalid; expected one of: {allowed}"
+                )
+
+        direction = flow.get("direction")
+        if direction is not None:
+            if not isinstance(direction, str):
+                errors.append(f"{location}.direction must be a string")
+            elif direction not in FLOW_DIRECTIONS:
+                allowed = ", ".join(FLOW_DIRECTIONS)
+                errors.append(
+                    f"{location}.direction '{direction}' is invalid; expected one of: {allowed}"
+                )
 
     for index, risk in enumerate(risks, start=1):
         location = f"risks[{index}]"
@@ -162,6 +312,100 @@ def validate_architecture_data(data: dict[str, Any]) -> None:
             allowed = ", ".join(sorted(ALLOWED_RISK_SEVERITIES))
             errors.append(
                 f"{location}.severity '{severity}' is invalid; expected one of: {allowed}"
+            )
+
+        description = risk.get("description")
+        if description is not None and not isinstance(description, str):
+            errors.append(f"{location}.description must be a string")
+
+        mitigation = risk.get("mitigation")
+        if mitigation is not None and not isinstance(mitigation, str):
+            errors.append(f"{location}.mitigation must be a string")
+
+        likelihood = risk.get("likelihood")
+        if likelihood is not None:
+            if not isinstance(likelihood, str):
+                errors.append(f"{location}.likelihood must be a string")
+            elif likelihood not in LIKELIHOODS:
+                allowed = ", ".join(LIKELIHOODS)
+                errors.append(
+                    f"{location}.likelihood '{likelihood}' is invalid; expected one of: {allowed}"
+                )
+
+        impact = risk.get("impact")
+        if impact is not None:
+            if not isinstance(impact, str):
+                errors.append(f"{location}.impact must be a string")
+            elif impact not in IMPACTS:
+                allowed = ", ".join(IMPACTS)
+                errors.append(
+                    f"{location}.impact '{impact}' is invalid; expected one of: {allowed}"
+                )
+
+    for index, control in enumerate(controls, start=1):
+        location = f"controls[{index}]"
+        if not isinstance(control, dict):
+            errors.append(f"{location} must be a mapping")
+            continue
+
+        control_name = control.get("name")
+        control_type = control.get("type")
+        applies_to = control.get("applies_to")
+        control_description = control.get("description")
+
+        if not control_name:
+            errors.append(f"{location}.name is required")
+        elif not isinstance(control_name, str):
+            errors.append(f"{location}.name must be a string")
+
+        if not control_type:
+            errors.append(f"{location}.type is required")
+        elif not isinstance(control_type, str):
+            errors.append(f"{location}.type must be a string")
+        elif control_type not in CONTROL_TYPES:
+            allowed = ", ".join(CONTROL_TYPES)
+            errors.append(
+                f"{location}.type '{control_type}' is invalid; expected one of: {allowed}"
+            )
+
+        if applies_to is None:
+            errors.append(f"{location}.applies_to is required")
+        elif not isinstance(applies_to, list):
+            errors.append(f"{location}.applies_to must be a list")
+        else:
+            for target_index, target in enumerate(applies_to, start=1):
+                if not isinstance(target, str):
+                    errors.append(f"{location}.applies_to[{target_index}] must be a string")
+                elif target not in component_names:
+                    errors.append(
+                        f"{location}.applies_to[{target_index}] '{target}' does not match any component"
+                    )
+
+        if control_description is not None and not isinstance(control_description, str):
+            errors.append(f"{location}.description must be a string")
+
+    for index, stakeholder in enumerate(stakeholders, start=1):
+        location = f"stakeholders[{index}]"
+        if not isinstance(stakeholder, dict):
+            errors.append(f"{location} must be a mapping")
+            continue
+
+        stakeholder_name = stakeholder.get("name")
+        stakeholder_role = stakeholder.get("role")
+
+        if not stakeholder_name:
+            errors.append(f"{location}.name is required")
+        elif not isinstance(stakeholder_name, str):
+            errors.append(f"{location}.name must be a string")
+
+        if not stakeholder_role:
+            errors.append(f"{location}.role is required")
+        elif not isinstance(stakeholder_role, str):
+            errors.append(f"{location}.role must be a string")
+        elif stakeholder_role not in STAKEHOLDER_ROLES:
+            allowed = ", ".join(STAKEHOLDER_ROLES)
+            errors.append(
+                f"{location}.role '{stakeholder_role}' is invalid; expected one of: {allowed}"
             )
 
     if errors:
