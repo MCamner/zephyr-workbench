@@ -23,7 +23,15 @@ class ValidationError(ValueError):
 
 def load_architecture_data(path: str | Path) -> dict[str, Any]:
     file_path = Path(path)
-    data = yaml.safe_load(file_path.read_text(encoding="utf-8"))
+    try:
+        contents = file_path.read_text(encoding="utf-8")
+    except FileNotFoundError as error:
+        raise ValidationError([f"{file_path}: file not found"]) from error
+
+    try:
+        data = yaml.safe_load(contents)
+    except yaml.YAMLError as error:
+        raise ValidationError([f"{file_path}: invalid YAML: {error}"]) from error
 
     if not isinstance(data, dict):
         raise ValidationError([f"{file_path}: root document must be a YAML mapping"])
@@ -42,6 +50,10 @@ def validate_architecture_data(data: dict[str, Any]) -> None:
     if name is not None and not isinstance(name, str):
         errors.append("field 'name' must be a string")
 
+    description = data.get("description")
+    if description is not None and not isinstance(description, str):
+        errors.append("field 'description' must be a string")
+
     components = data.get("components", [])
     flows = data.get("flows", [])
     risks = data.get("risks", [])
@@ -49,6 +61,8 @@ def validate_architecture_data(data: dict[str, Any]) -> None:
     if "components" in data and not isinstance(components, list):
         errors.append("field 'components' must be a list")
         components = []
+    elif isinstance(components, list) and not components:
+        errors.append("field 'components' must contain at least one component")
 
     if "flows" in data and not isinstance(flows, list):
         errors.append("field 'flows' must be a list")

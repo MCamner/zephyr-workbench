@@ -1,0 +1,11 @@
+name: invalid-description
+description:
+  nested: false
+
+components:
+  - name: laptop
+    type: endpoint
+
+flows:
+  - from: laptop
+    to: laptop

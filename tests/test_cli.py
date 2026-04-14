@@ -28,6 +28,15 @@ def test_validate_command_reports_errors() -> None:
     assert "missing required top-level field: name" in result.stderr
 
 
+def test_validate_command_reports_malformed_yaml_cleanly() -> None:
+    result = run_cli("validate", "tests/fixtures/invalid/malformed.yaml")
+
+    assert result.returncode == 1
+    assert "Validation failed:" in result.stderr
+    assert "invalid YAML" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
 def test_diagram_command_renders_mermaid_for_valid_input() -> None:
     result = run_cli("diagram", "examples/identity-flow.yaml", "--format", "mermaid")
 

@@ -16,6 +16,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
 
       - name: Install package and test tools
         run: |
@@ -30,3 +31,8 @@ jobs:
           python -m zephyr.cli validate examples/secure-workplace.yaml
           python -m zephyr.cli validate examples/identity-flow.yaml
           python -m zephyr.cli validate examples/macos-intune-windows-domain.yaml
+
+      - name: Run CLI smoke tests
+        run: |
+          python -m zephyr.cli summary examples/secure-workplace.yaml
+          python -m zephyr.cli diagram examples/secure-workplace.yaml --format mermaid
