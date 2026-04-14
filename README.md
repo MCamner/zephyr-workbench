@@ -1,5 +1,8 @@
 # zephyr-workbench
 
+![Python](https://img.shields.io/badge/python-3.11-blue)
+![Status](https://img.shields.io/badge/status-active-brightgreen)
+
 > **Model infrastructure. Understand flows. Generate architecture.**
 
 CLI-based workbench for modeling **infrastructure, identity, and workplace systems** using YAML — and turning them into **summaries, validation checks, and diagrams**.
