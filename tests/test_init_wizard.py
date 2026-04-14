@@ -17,59 +17,30 @@ def test_run_init_wizard_creates_expected_output_shape(
         [
             "macos-intune-secure-access",
             "Secure enterprise access for macOS devices",
-            "workplace-architecture",
-            "prod",
-            "high",
             "y",
             "user",
             "actor",
-            "y",
-            "End user",
-            "high",
-            "internal",
-            "active",
+            "",
             "y",
             "macbook",
             "endpoint",
-            "y",
-            "Managed corporate device",
-            "high",
-            "internal",
-            "active",
+            "",
             "n",
             "y",
             "user",
             "macbook",
             "signs in",
-            "https",
-            "mfa",
-            "tls",
-            "outbound",
             "n",
             "y",
             "R1",
             "VPN is single point of failure",
             "high",
-            "medium",
-            "high",
-            "Remote access depends on one gateway",
-            "Add redundant gateway",
-            "n",
-            "y",
-            "MFA policy",
-            "policy",
-            "macbook",
-            "Require MFA for sign-in",
-            "n",
-            "y",
-            "Workplace Architecture",
-            "owner",
             "n",
         ]
     )
     monkeypatch.setattr("builtins.input", lambda _: next(answers))
 
-    exit_code = run_init_wizard(output_path=str(output_path), validate=False)
+    exit_code = run_init_wizard(output_path=str(output_path), validate=False, minimal=True)
 
     assert exit_code == 0
     data = yaml.safe_load(output_path.read_text(encoding="utf-8"))
@@ -80,8 +51,11 @@ def test_run_init_wizard_creates_expected_output_shape(
     assert "components" in data
     assert "flows" in data
     assert "risks" in data
-    assert "controls" in data
-    assert "stakeholders" in data
+    assert "controls" not in data
+    assert "stakeholders" not in data
+    assert data["components"][0]["criticality"] == "medium"
+    assert data["flows"][0]["direction"] == "outbound"
+    assert data["risks"][0]["likelihood"] == "medium"
 
 
 def test_generated_yaml_validates(
@@ -92,17 +66,17 @@ def test_generated_yaml_validates(
         [
             "identity-edge",
             "",
-            "platform-team",
-            "dev",
-            "medium",
+            "",
+            "",
+            "",
             "y",
             "idp",
             "identity-provider",
-            "y",
             "",
-            "medium",
-            "internal",
-            "active",
+            "",
+            "",
+            "",
+            "",
             "n",
             "n",
             "n",
@@ -121,6 +95,45 @@ def test_generated_yaml_validates(
     architecture = load_validated_architecture(output_path)
     assert architecture.name == "identity-edge"
     assert len(architecture.components) == 1
+
+
+def test_guided_mode_only_adds_optional_sections_when_selected(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    output_path = tmp_path / "guided.yaml"
+    answers = iter(
+        [
+            "secure-workplace",
+            "",
+            "platform-team",
+            "",
+            "",
+            "y",
+            "user",
+            "actor",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "n",
+            "n",
+            "n",
+            "n",
+            "n",
+        ]
+    )
+    monkeypatch.setattr("builtins.input", lambda _: next(answers))
+
+    exit_code = run_init_wizard(output_path=str(output_path), validate=False)
+
+    assert exit_code == 0
+    data = yaml.safe_load(output_path.read_text(encoding="utf-8"))
+    assert data["meta"]["owner"] == "platform-team"
+    assert data["meta"]["environment"] == ["prod"]
+    assert data["meta"]["criticality"] == "medium"
+    assert data["controls"] == []
+    assert data["stakeholders"] == []
 
 
 def test_invalid_selection_is_blocked_until_valid(

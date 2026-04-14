@@ -41,6 +41,11 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Skip validation after generation",
     )
+    init_parser.add_argument(
+        "--minimal",
+        action="store_true",
+        help="Use the fastest V1 wizard path with minimal prompts",
+    )
     init_parser.add_argument("--template", help="Optional starter template name")
 
     return parser
@@ -74,6 +79,7 @@ def main() -> None:
             exit_code = run_init_wizard(
                 output_path=args.output,
                 validate=not args.no_validate,
+                minimal=args.minimal,
                 template=args.template,
             )
             raise SystemExit(exit_code)

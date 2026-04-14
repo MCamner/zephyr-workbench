@@ -28,15 +28,17 @@ from zephyr.validation import ValidationError, load_validated_architecture
 def run_init_wizard(
     output_path: str | None = None,
     validate: bool = True,
+    minimal: bool = False,
     template: str | None = None,
 ) -> int:
     if template:
         print(f"Template '{template}' is not implemented yet; continuing with the default model.")
 
     print("Zephyr Init Wizard")
+    print("Mode: minimal V1" if minimal else "Mode: guided V1")
     print("")
 
-    model = build_architecture_model()
+    model = build_architecture_model(minimal=minimal)
     default_path = output_path or f"examples/{model['name']}.yaml"
     chosen_path = output_path or _prompt_text("Output file", default=default_path)
 
@@ -62,17 +64,19 @@ def run_init_wizard(
     return 0
 
 
-def prompt_meta() -> dict:
-    return {
+def prompt_meta(minimal: bool) -> dict:
+    meta = {
         "name": _prompt_required_text("Architecture name"),
         "description": _prompt_text("Description", default=""),
-        "owner": _prompt_required_text("Owner"),
-        "environment": [_prompt_choice("Environment", ENVIRONMENTS)],
-        "criticality": _prompt_choice("Criticality", CRITICALITIES),
     }
+    if not minimal:
+        meta["owner"] = _prompt_text("Owner", default="")
+        meta["environment"] = [_prompt_choice("Environment", ENVIRONMENTS, default="prod")]
+        meta["criticality"] = _prompt_choice("Criticality", CRITICALITIES, default="medium")
+    return meta
 
 
-def prompt_components() -> list[dict]:
+def prompt_components(minimal: bool) -> list[dict]:
     components: list[dict] = []
 
     while _prompt_yes_no("Add component?", default=not components):
@@ -82,46 +86,65 @@ def prompt_components() -> list[dict]:
 
         if suggested_domain:
             print(f"Suggested domain: {suggested_domain}")
-            use_suggested = _prompt_yes_no("Use suggested domain?", default=True)
-            domain = suggested_domain if use_suggested else _prompt_choice("Domain", DOMAINS)
+            domain = _prompt_choice("Domain", DOMAINS, default=suggested_domain)
         else:
             domain = _prompt_choice("Domain", DOMAINS)
 
-        components.append(
-            {
-                "name": name,
-                "type": component_type,
-                "domain": domain,
-                "description": _prompt_text("Description", default=""),
-                "criticality": _prompt_choice("Criticality", CRITICALITIES[:-1]),
-                "exposure": _prompt_choice("Exposure", EXPOSURES),
-                "lifecycle": _prompt_choice("Lifecycle", LIFECYCLES),
-            }
-        )
+        component = {
+            "name": name,
+            "type": component_type,
+            "domain": domain,
+            "criticality": "medium",
+            "exposure": "internal",
+            "lifecycle": "active",
+        }
+
+        if not minimal:
+            description = _prompt_text("Description", default="")
+            if description:
+                component["description"] = description
+            component["criticality"] = _prompt_choice(
+                "Criticality", CRITICALITIES[:-1], default="medium"
+            )
+            component["exposure"] = _prompt_choice("Exposure", EXPOSURES, default="internal")
+            component["lifecycle"] = _prompt_choice("Lifecycle", LIFECYCLES, default="active")
+
+        components.append(component)
 
     return components
 
 
-def prompt_flows(component_names: list[str]) -> list[dict]:
+def prompt_flows(component_names: list[str], minimal: bool) -> list[dict]:
     flows: list[dict] = []
 
     while _prompt_yes_no("Add flow?", default=bool(component_names) and not flows):
-        flows.append(
-            {
-                "from": _prompt_choice("From", component_names),
-                "to": _prompt_choice("To", component_names),
-                "label": _prompt_required_text("Label"),
-                "protocol": _prompt_required_text("Protocol"),
-                "authentication": _prompt_choice("Authentication", AUTH_TYPES),
-                "encryption": _prompt_choice("Encryption", ENCRYPTION_TYPES),
-                "direction": _prompt_choice("Direction", FLOW_DIRECTIONS),
-            }
-        )
+        flow = {
+            "from": _prompt_choice("From", component_names),
+            "to": _prompt_choice("To", component_names),
+            "label": _prompt_required_text("Label"),
+            "direction": "outbound",
+        }
+
+        if not minimal:
+            protocol = _prompt_text("Protocol", default="")
+            authentication = _prompt_choice("Authentication", AUTH_TYPES, default="none")
+            encryption = _prompt_choice("Encryption", ENCRYPTION_TYPES, default="none")
+            direction = _prompt_choice("Direction", FLOW_DIRECTIONS, default="outbound")
+
+            if protocol:
+                flow["protocol"] = protocol
+            if authentication != "none":
+                flow["authentication"] = authentication
+            if encryption != "none":
+                flow["encryption"] = encryption
+            flow["direction"] = direction
+
+        flows.append(flow)
 
     return flows
 
 
-def prompt_risks() -> list[dict]:
+def prompt_risks(minimal: bool) -> list[dict]:
     risks: list[dict] = []
 
     while _prompt_yes_no("Add risk?", default=False):
@@ -129,16 +152,20 @@ def prompt_risks() -> list[dict]:
             "id": _prompt_required_text("Risk ID"),
             "title": _prompt_required_text("Title"),
             "severity": _prompt_choice("Severity", SEVERITIES),
-            "likelihood": _prompt_choice("Likelihood", LIKELIHOODS),
-            "impact": _prompt_choice("Impact", IMPACTS),
+            "likelihood": "medium",
+            "impact": "medium",
         }
 
-        description = _prompt_text("Description", default="")
-        mitigation = _prompt_text("Mitigation", default="")
-        if description:
-            risk["description"] = description
-        if mitigation:
-            risk["mitigation"] = mitigation
+        if not minimal:
+            risk["likelihood"] = _prompt_choice("Likelihood", LIKELIHOODS, default="medium")
+            risk["impact"] = _prompt_choice("Impact", IMPACTS, default="medium")
+
+            description = _prompt_text("Description", default="")
+            mitigation = _prompt_text("Mitigation", default="")
+            if description:
+                risk["description"] = description
+            if mitigation:
+                risk["mitigation"] = mitigation
 
         risks.append(risk)
 
@@ -178,27 +205,40 @@ def prompt_stakeholders() -> list[dict]:
     return stakeholders
 
 
-def build_architecture_model() -> dict:
-    meta = prompt_meta()
-    components = prompt_components()
+def build_architecture_model(minimal: bool = False) -> dict:
+    meta = prompt_meta(minimal=minimal)
+    components = prompt_components(minimal=minimal)
     component_names = [component["name"] for component in components]
 
-    return {
+    meta_block = {"version": DEFAULT_VERSION}
+
+    owner = meta.get("owner")
+    if owner:
+        meta_block["owner"] = owner
+
+    environment = meta.get("environment")
+    if environment:
+        meta_block["environment"] = environment
+
+    criticality = meta.get("criticality")
+    if criticality:
+        meta_block["criticality"] = criticality
+
+    model = {
         "name": meta["name"],
         "description": meta["description"],
-        "meta": {
-            "version": DEFAULT_VERSION,
-            "owner": meta["owner"],
-            "environment": meta["environment"],
-            "criticality": meta["criticality"],
-        },
+        "meta": meta_block,
         "domains": list(DOMAINS),
         "components": components,
-        "flows": prompt_flows(component_names),
-        "risks": prompt_risks(),
-        "controls": prompt_controls(component_names),
-        "stakeholders": prompt_stakeholders(),
+        "flows": prompt_flows(component_names, minimal=minimal),
+        "risks": prompt_risks(minimal=minimal),
     }
+
+    if not minimal:
+        model["controls"] = prompt_controls(component_names)
+        model["stakeholders"] = prompt_stakeholders()
+
+    return model
 
 
 def write_yaml_file(model: dict, output_path: str) -> None:
@@ -230,11 +270,17 @@ def _prompt_required_text(label: str) -> str:
         print(f"{label} is required.")
 
 
-def _prompt_choice(label: str, options: list[str]) -> str:
+def _prompt_choice(label: str, options: list[str], default: str | None = None) -> str:
     option_text = "/".join(options)
+    prompt = f"{label} [{option_text}]"
+    if default is not None:
+        prompt += f" [{default}]"
+    prompt += ": "
 
     while True:
-        value = input(f"{label} [{option_text}]: ").strip()
+        value = input(prompt).strip()
+        if not value and default is not None:
+            return default
         if value in options:
             return value
         print(f"Invalid selection. Choose one of: {option_text}")

@@ -41,10 +41,13 @@ It is designed for real-world architecture work where identity, endpoints, trust
 python3.11 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
+python -m zephyr.cli init --minimal
 python -m zephyr.cli validate examples/macos-intune-windows-domain.yaml
 python -m zephyr.cli summary examples/macos-intune-windows-domain.yaml
 python -m zephyr.cli diagram examples/macos-intune-windows-domain.yaml --format mermaid
 ```
+
+`zephyr init --minimal` is the fastest V1 path. It asks only for core metadata, components, flows, and risks, while filling the rest with sensible defaults.
 
 ---
 
