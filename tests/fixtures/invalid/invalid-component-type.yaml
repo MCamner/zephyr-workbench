@@ -1,0 +1,9 @@
+name: invalid-component-type
+
+components:
+  - name: data-store
+    type: database
+
+flows:
+  - from: data-store
+    to: data-store

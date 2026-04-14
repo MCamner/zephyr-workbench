@@ -1,0 +1,14 @@
+name: invalid-risk-severity
+
+components:
+  - name: laptop
+    type: endpoint
+
+flows:
+  - from: laptop
+    to: laptop
+
+risks:
+  - id: R1
+    title: Severity is not from the contract
+    severity: urgent

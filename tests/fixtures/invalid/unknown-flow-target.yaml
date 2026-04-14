@@ -1,0 +1,10 @@
+name: unknown-flow-target
+
+components:
+  - name: laptop
+    type: endpoint
+
+flows:
+  - from: laptop
+    to: directory
+    label: authenticate

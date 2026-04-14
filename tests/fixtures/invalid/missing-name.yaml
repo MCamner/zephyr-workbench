@@ -1,0 +1,8 @@
+components:
+  - name: laptop
+    type: endpoint
+
+flows:
+  - from: laptop
+    to: laptop
+    label: loopback

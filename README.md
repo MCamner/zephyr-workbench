@@ -2,15 +2,89 @@
 
 > **Model infrastructure. Understand flows. Generate architecture.**
 
-CLI-based workbench for modeling **infrastructure, identity, and workplace systems** using YAML — and turning them into **summaries and diagrams**.
+CLI-based workbench for modeling **infrastructure, identity, and workplace systems** using YAML — and turning them into **summaries, validation checks, and diagrams**.
 
 ---
 
-## ⚡ One command → instant architecture insight
+## ⚡ V1 at a glance
+
+The first version is intentionally small and practical:
+
+* YAML in
+* validation first
+* text summary out
+* Mermaid diagram out
+* CLI first
+
+---
+
+## 🧠 What it does
+
+Zephyr Workbench helps you:
+
+* describe infrastructure systems in a structured format
+* analyze components, flows, and risks
+* validate architecture models before rendering
+* generate architecture summaries
+* produce diagram-ready output
+
+It is designed for real-world architecture work where identity, endpoints, trust boundaries, and dependencies matter.
+
+---
+
+## 🚀 Quick start
 
 ```bash
-python -m zephyr.cli summary examples/secure-workplace.yaml
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+python -m zephyr.cli validate examples/macos-intune-windows-domain.yaml
+python -m zephyr.cli summary examples/macos-intune-windows-domain.yaml
+python -m zephyr.cli diagram examples/macos-intune-windows-domain.yaml --format mermaid
 ```
+
+---
+
+## 📐 V1 model contract
+
+Zephyr V1 accepts a YAML mapping with these top-level fields:
+
+* `name` required string
+* `description` optional string
+* `components` required list
+* `flows` required list
+* `risks` optional list
+
+Each component must have:
+
+* `name`
+* `type`
+
+Each flow must have:
+
+* `from`
+* `to`
+* optional `label`
+
+Each risk must have:
+
+* `id`
+* `title`
+* `severity`
+
+Validation rules enforced by the CLI:
+
+* component names must be unique
+* risk IDs must be unique
+* flows must point to known components
+* component types must be from the V1 allowlist
+* risk severity must be one of `low`, `medium`, `high`, `critical`
+
+The current machine-readable contract lives in `schemas/architecture.schema.yaml`.
+
+---
+
+## 🔥 Example output
 
 ```text
 Architecture: secure-workplace
@@ -59,27 +133,16 @@ Architecture is usually:
 
 **Zephyr makes architecture executable.**
 
-👉 Define once → analyze, visualize, reuse
+Define once, then validate, analyze, visualize, and reuse.
 
 ---
 
-## 🚀 Quick start
+## 🧪 Real-world example
+
+The strongest current demo path is the enterprise hybrid macOS example:
 
 ```bash
-python3.11 -m venv .venv
-source .venv/bin/activate
-
-pip install -e .
-
-python -m zephyr.cli summary examples/secure-workplace.yaml
-python -m zephyr.cli diagram examples/secure-workplace.yaml --format mermaid
-```
-
----
-
-## 🧪 Real-world example (where Zephyr shines)
-
-```bash
+python -m zephyr.cli validate examples/macos-intune-windows-domain.yaml
 python -m zephyr.cli summary examples/macos-intune-windows-domain.yaml
 python -m zephyr.cli diagram examples/macos-intune-windows-domain.yaml --format mermaid
 ```
@@ -89,10 +152,19 @@ Models:
 * macOS devices enrolled in Intune
 * Entra ID identity flows
 * Conditional Access
-* VPN + certificate-based access
-* On-prem Windows domain integration
+* VPN and certificate-based access
+* on-prem Windows domain integration
 
-👉 Built for **real enterprise environments**, not abstract diagrams.
+Expected summary shape:
+
+```text
+Architecture: macos-intune-windows-domain
+Components: 8
+Flows: 6
+Risks: 3
+```
+
+Built for **real enterprise environments**, not abstract diagrams.
 
 ---
 
@@ -100,27 +172,28 @@ Models:
 
 Zephyr uses a simple structure:
 
-* **components** → systems, endpoints, identities
-* **flows** → interactions and dependencies
-* **risks** → weaknesses and failure points
+* `components` for systems, endpoints, identities, and controls
+* `flows` for interactions and dependencies
+* `risks` for weaknesses and failure points
 
-Input: YAML
+Input: YAML  
 Output: structured, repeatable architecture data
 
 ---
 
 ## 🧰 Scope (V1)
 
-| Input                       | Output           |
-| --------------------------- | ---------------- |
-| YAML architecture models    | Text summaries   |
+| Input | Output |
+| --- | --- |
+| YAML architecture models | Text summaries |
 | Structured components/flows | Mermaid diagrams |
+| Invalid models | Clear validation errors |
 
 **Approach**
 
 * CLI-first
 * simple, inspectable files
-* no UI overhead
+* practical architecture modeling over UI complexity
 
 ---
 
@@ -137,22 +210,22 @@ tests/       validation and checks
 
 ## 🧭 Philosophy
 
-* Model first, diagram later
-* Structure over slides
-* Simplicity over abstraction
-* Built for real operations
+* model first, diagram later
+* structure over slides
+* simplicity over abstraction
+* built for real operations
 
 ---
 
 ## 📄 Status
 
-Early V1 — actively evolving.
+Early V1.
 
 Current focus:
 
-* validation layer
-* stable CLI commands
-* improved summaries and diagrams
+* stabilizing the V1 model contract
+* expanding validation coverage
+* improving summary and diagram output
 
 ---
 

@@ -1,18 +1,63 @@
+title: Zephyr Architecture V1
+type: object
+
 required:
   - name
   - components
   - flows
 
-component_fields:
-  - name
-  - type
+properties:
+  name:
+    type: string
+    description: Stable architecture identifier shown in CLI output.
+  description:
+    type: string
+    required: false
+  components:
+    type: array
+    min_items: 1
+    item_required:
+      - name
+      - type
+  flows:
+    type: array
+    min_items: 0
+    item_required:
+      - from
+      - to
+  risks:
+    type: array
+    min_items: 0
+    item_required:
+      - id
+      - title
+      - severity
 
-flow_fields:
-  - from
-  - to
-  - label
+allowed_component_types:
+  - actor
+  - access-gateway
+  - access-policy
+  - application
+  - cloud-identity
+  - device-management
+  - endpoint
+  - identity
+  - identity-provider
+  - on-prem-identity
+  - on-prem-resource
+  - pki
+  - remote-access
+  - security-control
 
-risk_fields:
-  - id
-  - title
-  - severity
+allowed_risk_severities:
+  - low
+  - medium
+  - high
+  - critical
+
+validation_rules:
+  - component names must be unique
+  - risk ids must be unique
+  - flows must reference existing component names
+  - component types must use allowed_component_types
+  - risks must use allowed_risk_severities
