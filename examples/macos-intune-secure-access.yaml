@@ -1,0 +1,71 @@
+name: macos-intune-secure-access
+description: >
+  Enterprise macOS architecture model for Intune-enrolled devices using
+  Entra ID, Conditional Access, certificates, VPN, and access to on-prem resources.
+
+components:
+  - name: user
+    type: actor
+
+  - name: macbook
+    type: endpoint
+
+  - name: intune
+    type: device-management
+
+  - name: entra-id
+    type: cloud-identity
+
+  - name: conditional-access
+    type: security-control
+
+  - name: enterprise-ca
+    type: certificate-service
+
+  - name: vpn-gateway
+    type: access-gateway
+
+  - name: file-server
+    type: service
+
+flows:
+  - from: user
+    to: macbook
+    label: signs in
+
+  - from: macbook
+    to: intune
+    label: enrolled and managed
+
+  - from: macbook
+    to: entra-id
+    label: authenticates user
+
+  - from: entra-id
+    to: conditional-access
+    label: evaluates access policy
+
+  - from: macbook
+    to: enterprise-ca
+    label: requests or uses certificate
+
+  - from: macbook
+    to: vpn-gateway
+    label: starts secure tunnel
+
+  - from: vpn-gateway
+    to: file-server
+    label: accesses internal resource
+
+risks:
+  - id: R1
+    title: VPN gateway is a single point of failure
+    severity: high
+
+  - id: R2
+    title: Conditional Access gaps may allow unmanaged or non-compliant access
+    severity: medium
+
+  - id: R3
+    title: Certificate lifecycle issues may break secure access for macOS devices
+    severity: medium
