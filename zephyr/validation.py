@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +34,12 @@ class ValidationError(ValueError):
     def __init__(self, errors: list[str]) -> None:
         self.errors = errors
         super().__init__("\n".join(errors))
+
+
+@dataclass
+class ValidationResult:
+    architecture: Architecture
+    warnings: list[str]
 
 
 def load_architecture_data(path: str | Path) -> dict[str, Any]:
@@ -412,6 +419,45 @@ def validate_architecture_data(data: dict[str, Any]) -> None:
         raise ValidationError(errors)
 
 
+def collect_validation_warnings(data: dict[str, Any]) -> list[str]:
+    warnings: list[str] = []
+    components = data.get("components", [])
+    flows = data.get("flows", [])
+
+    component_types = {
+        item["name"]: item["type"]
+        for item in components
+        if isinstance(item, dict)
+        and isinstance(item.get("name"), str)
+        and isinstance(item.get("type"), str)
+    }
+
+    gateway_names = [
+        name for name, component_type in component_types.items() if component_type == "access-gateway"
+    ]
+    if len(gateway_names) == 1:
+        warnings.append(f"only one access-gateway detected ({gateway_names[0]})")
+
+    identity_types = {"identity", "identity-provider", "cloud-identity", "on-prem-identity"}
+
+    for flow in flows:
+        if not isinstance(flow, dict):
+            continue
+
+        source = flow.get("from")
+        target = flow.get("to")
+
+        if component_types.get(source) == "endpoint" and component_types.get(target) == "endpoint":
+            warnings.append(f"endpoint-to-endpoint flow detected ({source} -> {target})")
+
+        if flow.get("authentication") == "mfa" and component_types.get(target) not in identity_types:
+            warnings.append(
+                f"MFA flow target should be an identity component ({source} -> {target})"
+            )
+
+    return warnings
+
+
 def architecture_from_data(data: dict[str, Any]) -> Architecture:
     return Architecture(
         name=data["name"],
@@ -440,6 +486,13 @@ def architecture_from_data(data: dict[str, Any]) -> Architecture:
 
 
 def load_validated_architecture(path: str | Path) -> Architecture:
+    return load_validation_result(path).architecture
+
+
+def load_validation_result(path: str | Path) -> ValidationResult:
     data = load_architecture_data(path)
     validate_architecture_data(data)
-    return architecture_from_data(data)
+    return ValidationResult(
+        architecture=architecture_from_data(data),
+        warnings=collect_validation_warnings(data),
+    )

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import asdict
 from pathlib import Path
 from typing import Union
 
@@ -12,17 +13,29 @@ def load_architecture(path: Union[str, Path]) -> Architecture:
 
 
 def summarize_architecture(architecture: Architecture) -> str:
+    summary = summarize_architecture_data(architecture)
     lines = [
-        f"Architecture: {architecture.name}",
-        f"Components: {len(architecture.components)}",
-        f"Flows: {len(architecture.flows)}",
-        f"Risks: {len(architecture.risks)}",
+        f"Architecture: {summary['name']}",
+        f"Components: {summary['components']}",
+        f"Flows: {summary['flows']}",
+        f"Risks: {summary['risks']}",
         "",
     ]
 
-    if architecture.risks:
+    if summary["risk_details"]:
         lines.append("Risks:")
-        for risk in architecture.risks:
-            lines.append(f"- [{risk.severity.upper()}] {risk.id}: {risk.title}")
+        for risk in summary["risk_details"]:
+            lines.append(f"- [{risk['severity'].upper()}] {risk['id']}: {risk['title']}")
 
     return "\n".join(lines)
+
+
+def summarize_architecture_data(architecture: Architecture) -> dict:
+    return {
+        "name": architecture.name,
+        "description": architecture.description,
+        "components": len(architecture.components),
+        "flows": len(architecture.flows),
+        "risks": len(architecture.risks),
+        "risk_details": [asdict(risk) for risk in architecture.risks],
+    }

@@ -1,6 +1,14 @@
-import pytest
+from pathlib import Path
 
-from zephyr.validation import ValidationError, load_validated_architecture
+import pytest
+import yaml
+
+from zephyr.validation import (
+    ValidationError,
+    collect_validation_warnings,
+    load_validation_result,
+    load_validated_architecture,
+)
 
 
 def test_load_valid_architecture() -> None:
@@ -29,3 +37,59 @@ def test_invalid_architecture_reports_clear_error(path: str, message: str) -> No
         load_validated_architecture(path)
 
     assert message in str(excinfo.value)
+
+
+def test_collect_validation_warnings_detects_endpoint_and_gateway_patterns() -> None:
+    data = {
+        "name": "warning-case",
+        "components": [
+            {"name": "laptop-a", "type": "endpoint"},
+            {"name": "laptop-b", "type": "endpoint"},
+            {"name": "vpn-gateway", "type": "access-gateway"},
+        ],
+        "flows": [
+            {"from": "laptop-a", "to": "laptop-b", "label": "peer sync"},
+        ],
+    }
+
+    warnings = collect_validation_warnings(data)
+
+    assert "endpoint-to-endpoint flow detected (laptop-a -> laptop-b)" in warnings
+    assert "only one access-gateway detected (vpn-gateway)" in warnings
+
+
+def test_collect_validation_warnings_detects_mfa_target_mismatch() -> None:
+    data = {
+        "name": "warning-case",
+        "components": [
+            {"name": "user-device", "type": "endpoint"},
+            {"name": "app", "type": "application"},
+        ],
+        "flows": [
+            {"from": "user-device", "to": "app", "label": "sign-in", "authentication": "mfa"},
+        ],
+    }
+
+    warnings = collect_validation_warnings(data)
+
+    assert "MFA flow target should be an identity component (user-device -> app)" in warnings
+
+
+def test_load_validation_result_returns_architecture_and_warnings(tmp_path: Path) -> None:
+    path = tmp_path / "warning-case.yaml"
+    data = {
+        "name": "warning-case",
+        "components": [
+            {"name": "laptop-a", "type": "endpoint"},
+            {"name": "laptop-b", "type": "endpoint"},
+        ],
+        "flows": [
+            {"from": "laptop-a", "to": "laptop-b", "label": "peer sync"},
+        ],
+    }
+    path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+    result = load_validation_result(path)
+
+    assert result.architecture.name == "warning-case"
+    assert result.warnings == ["endpoint-to-endpoint flow detected (laptop-a -> laptop-b)"]

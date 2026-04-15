@@ -5,7 +5,7 @@
 
 > **Model infrastructure. Understand flows. Generate architecture.**
 
-CLI-based workbench for modeling **infrastructure, identity, and workplace systems** using YAML — and turning them into **summaries, validation checks, and diagrams**.
+CLI-based architecture workbench for modeling **infrastructure, identity, and workplace systems** using YAML, validation, summaries, and diagrams.
 
 ---
 
@@ -44,10 +44,14 @@ python -m pip install -e ".[dev]"
 python -m zephyr.cli init --minimal
 python -m zephyr.cli validate examples/macos-intune-windows-domain.yaml
 python -m zephyr.cli summary examples/macos-intune-windows-domain.yaml
+python -m zephyr.cli summary examples/macos-intune-windows-domain.yaml --json
 python -m zephyr.cli diagram examples/macos-intune-windows-domain.yaml --format mermaid
+python -m zephyr.cli run examples/macos-intune-windows-domain.yaml
 ```
 
 `zephyr init --minimal` is the fastest V1 path. It asks only for core metadata, components, flows, and risks, while filling the rest with sensible defaults.
+
+`zephyr run` is the fastest end-to-end path. It validates the model, prints the summary, and writes a Mermaid diagram to `output/`.
 
 ---
 
@@ -93,6 +97,8 @@ The current machine-readable contract lives in `schemas/architecture.schema.yaml
 ## 🔥 Example output
 
 ```text
+Validation passed
+
 Architecture: secure-workplace
 Components: 6
 Flows: 5
@@ -101,6 +107,8 @@ Risks: 2
 Risks:
 - [HIGH] R1: Citrix Gateway single point of failure
 - [MEDIUM] R2: MFA dependency not clearly documented
+
+Diagram generated: output/secure-workplace.mmd
 ```
 
 ---
@@ -148,9 +156,7 @@ Define once, then validate, analyze, visualize, and reuse.
 The strongest current demo path is the enterprise hybrid macOS example:
 
 ```bash
-python -m zephyr.cli validate examples/macos-intune-windows-domain.yaml
-python -m zephyr.cli summary examples/macos-intune-windows-domain.yaml
-python -m zephyr.cli diagram examples/macos-intune-windows-domain.yaml --format mermaid
+python -m zephyr.cli run examples/macos-intune-windows-domain.yaml
 ```
 
 Models:
@@ -182,7 +188,7 @@ Zephyr uses a simple structure:
 * `flows` for interactions and dependencies
 * `risks` for weaknesses and failure points
 
-Input: YAML  
+Input: YAML
 Output: structured, repeatable architecture data
 
 ---
@@ -191,174 +197,17 @@ Output: structured, repeatable architecture data
 
 | Input | Output |
 | --- | --- |
-# zephyr-workbench
+| YAML architecture models | Text summaries |
+| YAML architecture models | JSON summaries |
+| Structured components and flows | Mermaid diagrams |
+| One CLI command | Validate, summarize, and diagram |
+| Invalid models | Clear validation errors |
 
-![Python](https://img.shields.io/badge/python-3.11-blue)
-![Status](https://img.shields.io/badge/status-active-brightgreen)
+**Approach**
 
-> **Model infrastructure. Understand flows. Generate architecture.**
-
-CLI-based workbench for modeling **infrastructure, identity, and workplace systems** using YAML — and turning them into **summaries, validation checks, and diagrams**.
-
----
-
-## ⚡ V1 at a glance
-
-- YAML in  
-- validation first  
-- text summary out  
-- Mermaid diagram out  
-- CLI-first  
-
----
-
-## 🧠 What it does
-
-Zephyr Workbench helps you:
-
-- describe infrastructure systems in a structured format  
-- analyze components, flows, and risks  
-- validate architecture models before rendering  
-- generate architecture summaries  
-- produce diagram-ready output  
-
-Built for real-world architecture work where identity, endpoints, trust boundaries, and dependencies matter.
-
----
-
-## 🚀 Quick start
-
-```bash
-python3.11 -m venv .venv
-source .venv/bin/activate
-
-python -m pip install -e ".[dev]"
-
-python -m zephyr.cli init --minimal
-
-python -m zephyr.cli validate examples/macos-intune-windows-domain.yaml
-python -m zephyr.cli summary examples/macos-intune-windows-domain.yaml
-python -m zephyr.cli diagram examples/macos-intune-windows-domain.yaml --format mermaid
-```
-
-👉 `zephyr init --minimal` is the fastest V1 path.
-
----
-
-## 📐 V1 model contract
-
-Top-level fields:
-
-- `name` (required)
-- `description` (optional)
-- `components` (required)
-- `flows` (required)
-- `risks` (optional)
-
-### Component
-- `name`
-- `type`
-
-### Flow
-- `from`
-- `to`
-- `label` (optional)
-
-### Risk
-- `id`
-- `title`
-- `severity`
-
-### Validation rules
-
-- component names must be unique  
-- risk IDs must be unique  
-- flows must reference known components  
-- component types must be from the allowlist  
-- severity must be: `low | medium | high | critical`  
-
-Schema:
-```text
-schemas/architecture.schema.yaml
-```
-
----
-
-## 🔥 Example output
-
-```text
-Architecture: secure-workplace
-Components: 6
-Flows: 5
-Risks: 2
-
-Risks:
-- [HIGH] R1: Citrix Gateway single point of failure
-- [MEDIUM] R2: MFA dependency not clearly documented
-```
-
----
-
-## 🎬 Generate diagrams
-
-```bash
-python -m zephyr.cli diagram examples/secure-workplace.yaml --format mermaid
-```
-
-```mermaid
-graph TD
-    user["user (actor)"]
-    igel["igel (endpoint)"]
-    citrix_gateway["citrix-gateway (access-gateway)"]
-    active_directory["active-directory (identity)"]
-    entra_id["entra-id (cloud-identity)"]
-    mfa["mfa (security-control)"]
-
-    user -->|signs in| igel
-    igel -->|starts session| citrix_gateway
-    citrix_gateway -->|validates identity| active_directory
-    active_directory -->|triggers MFA| mfa
-    active_directory -->|sync or federation| entra_id
-```
-
----
-
-## 🧪 Real-world example
-
-```bash
-python -m zephyr.cli validate examples/macos-intune-windows-domain.yaml
-python -m zephyr.cli summary examples/macos-intune-windows-domain.yaml
-python -m zephyr.cli diagram examples/macos-intune-windows-domain.yaml --format mermaid
-```
-
-Models:
-
-- macOS devices enrolled in Intune  
-- Entra ID identity flows  
-- Conditional Access  
-- VPN and certificate-based access  
-- on-prem Windows domain integration  
-
----
-
-## 📦 Core model
-
-- **components** → systems, endpoints, identities  
-- **flows** → interactions and dependencies  
-- **risks** → weaknesses and failure points  
-
-Input: YAML  
-Output: structured architecture data  
-
----
-
-## 🧰 Scope (V1)
-
-| Input                     | Output                    |
-|--------------------------|---------------------------|
-| YAML architecture models | Text summaries            |
-| Structured components    | Mermaid diagrams          |
-| Invalid models           | Clear validation errors   |
+* CLI-first
+* simple, inspectable files
+* practical architecture modeling over UI complexity
 
 ---
 
@@ -375,10 +224,10 @@ tests/       validation and checks
 
 ## 🧭 Philosophy
 
-- model first, diagram later  
-- structure over slides  
-- simplicity over abstraction  
-- built for real operations  
+* model first, diagram later
+* structure over slides
+* simplicity over abstraction
+* built for real operations
 
 ---
 
@@ -386,214 +235,11 @@ tests/       validation and checks
 
 Early V1.
 
-Focus:
-- stabilizing model contract  
-- expanding validation  
-- improving outputs  
+Current focus:
 
----
-
-## 📄 License
-
-MIT# zephyr-workbench
-
-![Python](https://img.shields.io/badge/python-3.11-blue)
-![Status](https://img.shields.io/badge/status-active-brightgreen)
-
-> **Model infrastructure. Understand flows. Generate architecture.**
-
-CLI-based workbench for modeling **infrastructure, identity, and workplace systems** using YAML — and turning them into **summaries, validation checks, and diagrams**.
-
----
-
-## ⚡ V1 at a glance
-
-- YAML in  
-- validation first  
-- text summary out  
-- Mermaid diagram out  
-- CLI-first  
-
----
-
-## 🧠 What it does
-
-Zephyr Workbench helps you:
-
-- describe infrastructure systems in a structured format  
-- analyze components, flows, and risks  
-- validate architecture models before rendering  
-- generate architecture summaries  
-- produce diagram-ready output  
-
-Built for real-world architecture work where identity, endpoints, trust boundaries, and dependencies matter.
-
----
-
-## 🚀 Quick start
-
-```bash
-python3.11 -m venv .venv
-source .venv/bin/activate
-
-python -m pip install -e ".[dev]"
-
-python -m zephyr.cli init --minimal
-
-python -m zephyr.cli validate examples/macos-intune-windows-domain.yaml
-python -m zephyr.cli summary examples/macos-intune-windows-domain.yaml
-python -m zephyr.cli diagram examples/macos-intune-windows-domain.yaml --format mermaid
-```
-
-👉 `zephyr init --minimal` is the fastest V1 path.
-
----
-
-## 📐 V1 model contract
-
-Top-level fields:
-
-- `name` (required)
-- `description` (optional)
-- `components` (required)
-- `flows` (required)
-- `risks` (optional)
-
-### Component
-- `name`
-- `type`
-
-### Flow
-- `from`
-- `to`
-- `label` (optional)
-
-### Risk
-- `id`
-- `title`
-- `severity`
-
-### Validation rules
-
-- component names must be unique  
-- risk IDs must be unique  
-- flows must reference known components  
-- component types must be from the allowlist  
-- severity must be: `low | medium | high | critical`  
-
-Schema:
-```text
-schemas/architecture.schema.yaml
-```
-
----
-
-## 🔥 Example output
-
-```text
-Architecture: secure-workplace
-Components: 6
-Flows: 5
-Risks: 2
-
-Risks:
-- [HIGH] R1: Citrix Gateway single point of failure
-- [MEDIUM] R2: MFA dependency not clearly documented
-```
-
----
-
-## 🎬 Generate diagrams
-
-```bash
-python -m zephyr.cli diagram examples/secure-workplace.yaml --format mermaid
-```
-
-```mermaid
-graph TD
-    user["user (actor)"]
-    igel["igel (endpoint)"]
-    citrix_gateway["citrix-gateway (access-gateway)"]
-    active_directory["active-directory (identity)"]
-    entra_id["entra-id (cloud-identity)"]
-    mfa["mfa (security-control)"]
-
-    user -->|signs in| igel
-    igel -->|starts session| citrix_gateway
-    citrix_gateway -->|validates identity| active_directory
-    active_directory -->|triggers MFA| mfa
-    active_directory -->|sync or federation| entra_id
-```
-
----
-
-## 🧪 Real-world example
-
-```bash
-python -m zephyr.cli validate examples/macos-intune-windows-domain.yaml
-python -m zephyr.cli summary examples/macos-intune-windows-domain.yaml
-python -m zephyr.cli diagram examples/macos-intune-windows-domain.yaml --format mermaid
-```
-
-Models:
-
-- macOS devices enrolled in Intune  
-- Entra ID identity flows  
-- Conditional Access  
-- VPN and certificate-based access  
-- on-prem Windows domain integration  
-
----
-
-## 📦 Core model
-
-- **components** → systems, endpoints, identities  
-- **flows** → interactions and dependencies  
-- **risks** → weaknesses and failure points  
-
-Input: YAML  
-Output: structured architecture data  
-
----
-
-## 🧰 Scope (V1)
-
-| Input                     | Output                    |
-|--------------------------|---------------------------|
-| YAML architecture models | Text summaries            |
-| Structured components    | Mermaid diagrams          |
-| Invalid models           | Clear validation errors   |
-
----
-
-## 🏗️ Project structure
-
-```text
-zephyr/      CLI and core logic
-examples/    sample architectures
-schemas/     model reference
-tests/       validation and checks
-```
-
----
-
-## 🧭 Philosophy
-
-- model first, diagram later  
-- structure over slides  
-- simplicity over abstraction  
-- built for real operations  
-
----
-
-## 📄 Status
-
-Early V1.
-
-Focus:
-- stabilizing model contract  
-- expanding validation  
-- improving outputs  
+* stabilizing the V1 model contract
+* expanding validation coverage
+* improving summary and diagram output
 
 ---
 
