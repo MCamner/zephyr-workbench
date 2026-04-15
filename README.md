@@ -15,6 +15,7 @@ The first version is intentionally small and practical:
 
 * YAML in
 * validation first
+* warnings for risky architecture patterns
 * text summary out
 * Mermaid diagram out
 * CLI first
@@ -55,6 +56,14 @@ python -m zephyr.cli run examples/macos-intune-windows-domain.yaml
 
 ---
 
+## 🎥 Demo
+
+![Zephyr demo](docs/demo.gif)
+
+Minimal init, end-to-end run, and diagram preview in one short terminal flow.
+
+---
+
 ## 📐 V1 model contract
 
 Zephyr V1 accepts a YAML mapping with these top-level fields:
@@ -90,6 +99,12 @@ Validation rules enforced by the CLI:
 * component types must be from the V1 allowlist
 * risk severity must be one of `low`, `medium`, `high`, `critical`
 
+Smart validation warnings currently include:
+
+* endpoint-to-endpoint flows
+* MFA flows that do not terminate in an identity component
+* single access-gateway designs that look like a single point of failure
+
 The current machine-readable contract lives in `schemas/architecture.schema.yaml`.
 
 ---
@@ -97,7 +112,10 @@ The current machine-readable contract lives in `schemas/architecture.schema.yaml
 ## 🔥 Example output
 
 ```text
-Validation passed
+Warnings:
+- W1: only one access-gateway detected (citrix-gateway)
+
+Validation passed with warnings
 
 Architecture: secure-workplace
 Components: 6
