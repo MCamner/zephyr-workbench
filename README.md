@@ -270,11 +270,3 @@ MIT
 From model → validated → visualized:
 
 ![Architecture diagram](docs/case-diagram.png)
-
-
-### Architecture preview
-
-From model → validated → visualized:
-
-![Architecture diagram](docs/case-diagram.png)
-
