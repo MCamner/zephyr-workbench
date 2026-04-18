@@ -1,0 +1,29 @@
+name: python -m zephyr.cli validate <din-fil>.yaml
+description: python -m zephyr.cli summary <din-fil>.yaml
+meta:
+  version: v1
+domains:
+- business
+- application
+- data
+- technology
+components:
+- name: TEST_INFRA
+  type: endpoint
+  domain: business
+  criticality: medium
+  exposure: internal
+  lifecycle: active
+- name: y
+  type: pki
+  domain: technology
+  criticality: medium
+  exposure: internal
+  lifecycle: active
+flows: []
+risks:
+- id: Cerificate
+  title: Certificaate
+  severity: high
+  likelihood: medium
+  impact: medium
