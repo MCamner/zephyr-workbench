@@ -7,6 +7,7 @@ from pathlib import Path
 
 from zephyr.analyzer import load_architecture, summarize_architecture, summarize_architecture_data
 from zephyr.diagram import to_html, to_mermaid
+from zephyr.diff import diff_architectures, format_diff
 from zephyr.init_wizard import run_init_wizard
 from zephyr.validation import ValidationError, load_validation_result
 
@@ -51,6 +52,10 @@ def _build_parser() -> argparse.ArgumentParser:
     diagram_parser.add_argument("file")
     diagram_parser.add_argument("--format", choices=["mermaid", "html"], required=True)
     diagram_parser.add_argument("--output", help="Write diagram output to a file instead of stdout")
+
+    diff_parser = subparsers.add_parser("diff", help="Compare two architecture YAML files")
+    diff_parser.add_argument("file_a", metavar="FILE_A")
+    diff_parser.add_argument("file_b", metavar="FILE_B")
 
     init_parser = subparsers.add_parser("init", help="Create a new architecture YAML file")
     init_parser.add_argument("--output", help="Output YAML path")
@@ -155,6 +160,13 @@ def main() -> None:
             print("")
             print(f"Diagram generated: {diagram_path}")
             return
+
+        if args.command == "diff":
+            a = load_architecture(args.file_a)
+            b = load_architecture(args.file_b)
+            diff = diff_architectures(a, b, source=args.file_a, target=args.file_b)
+            print(format_diff(diff))
+            raise SystemExit(1 if not diff.is_empty() else 0)
 
         if args.command == "init":
             exit_code = run_init_wizard(
