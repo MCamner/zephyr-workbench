@@ -20,13 +20,13 @@ components:
     type: security-control
 
   - name: enterprise-ca
-    type: certificate-service
+    type: pki
 
   - name: vpn-gateway
     type: access-gateway
 
   - name: file-server
-    type: service
+    type: on-prem-resource
 
 flows:
   - from: user

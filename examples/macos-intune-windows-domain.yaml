@@ -1,50 +1,206 @@
 name: macos-intune-windows-domain
+description: >
+  Enterprise macOS architecture with Intune-enrolled devices, Entra ID
+  cloud identity, Conditional Access, certificate-based authentication,
+  VPN for internal access, and hybrid on-prem Windows domain integration.
+
+meta:
+  version: v1
+  owner: platform-team
+  environment: [prod]
+  criticality: mission-critical
+
+domains:
+  - business
+  - application
+  - data
+  - technology
 
 components:
   - name: macbook
     type: endpoint
+    description: Corporate macOS device enrolled in Intune
+    domain: technology
+    criticality: high
+    exposure: internal
+    lifecycle: active
+
   - name: intune
     type: device-management
+    description: Microsoft Intune for device enrollment, compliance, and configuration
+    domain: application
+    criticality: high
+    exposure: external
+    lifecycle: active
+
   - name: entra-id
     type: cloud-identity
+    description: Entra ID as the primary cloud identity provider for users and devices
+    domain: application
+    criticality: mission-critical
+    exposure: external
+    lifecycle: active
+
   - name: conditional-access
     type: access-policy
+    description: Entra ID Conditional Access policies enforcing compliance and MFA
+    domain: application
+    criticality: high
+    exposure: external
+    lifecycle: active
+
   - name: windows-domain
     type: on-prem-identity
+    description: On-premises Active Directory for legacy identity and resource access
+    domain: data
+    criticality: mission-critical
+    exposure: internal
+    lifecycle: active
+
   - name: file-server
     type: on-prem-resource
+    description: On-prem file server accessible only through VPN
+    domain: data
+    criticality: medium
+    exposure: internal
+    lifecycle: active
+
   - name: vpn
     type: remote-access
+    description: VPN gateway providing encrypted tunnel to internal resources
+    domain: technology
+    criticality: high
+    exposure: external
+    lifecycle: active
+
   - name: certificate-service
     type: pki
+    description: Internal PKI issuing device and user certificates via SCEP
+    domain: technology
+    criticality: high
+    exposure: internal
+    lifecycle: active
 
 flows:
   - from: macbook
     to: intune
     label: enrollment
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
   - from: macbook
     to: entra-id
     label: sign-in
+    protocol: https
+    authentication: mfa
+    encryption: tls
+    direction: outbound
+
   - from: entra-id
     to: conditional-access
     label: evaluate policy
+    protocol: https
+    encryption: tls
+    direction: outbound
+
   - from: macbook
     to: vpn
     label: connect for internal access
+    protocol: ipsec
+    authentication: certificate
+    encryption: ipsec
+    direction: outbound
+
   - from: macbook
     to: file-server
     label: access internal resources
+    protocol: smb
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
   - from: macbook
     to: certificate-service
     label: obtain device or user cert
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
 
 risks:
   - id: R1
     title: Unclear trust boundary between Entra-managed identity and on-prem domain access
     severity: high
+    likelihood: high
+    impact: high
+    description: >
+      Devices authenticated via Entra ID may gain access to on-prem AD resources
+      without the on-prem domain validating device compliance or identity state.
+    mitigation: >
+      Implement Entra ID Kerberos to bridge cloud and on-prem identity.
+      Apply Conditional Access policies that verify on-prem AD group membership
+      before granting access to internal resources.
+
   - id: R2
     title: Certificate dependency not documented for secure access
     severity: medium
+    likelihood: medium
+    impact: high
+    description: >
+      VPN and resource access depend on device certificates issued by the internal PKI.
+      Expired or missing certificates silently break access with no user-facing guidance.
+    mitigation: >
+      Configure SCEP-based auto-renewal via Intune. Document certificate
+      validity windows and set up alerting for upcoming expirations.
+
   - id: R3
     title: Compliance state may not align with resource access expectations
     severity: medium
+    likelihood: medium
+    impact: medium
+    description: >
+      A device marked compliant in Intune may still access resources during the
+      compliance evaluation window, creating a gap between policy and enforcement.
+    mitigation: >
+      Enforce Conditional Access policies that block access until compliance
+      is confirmed. Set a short grace period for compliance re-evaluation.
+
+controls:
+  - name: enforce-device-compliance
+    type: technical
+    applies_to:
+      - intune
+      - conditional-access
+    description: >
+      Intune compliance policies require macOS devices to meet security baselines
+      before Conditional Access grants access to cloud and on-prem resources.
+
+  - name: certificate-renewal-process
+    type: process
+    applies_to:
+      - certificate-service
+      - macbook
+    description: >
+      Quarterly review of certificate expiry windows. SCEP-based auto-renewal
+      configured via Intune device configuration profiles.
+
+  - name: identity-access-review
+    type: policy
+    applies_to:
+      - entra-id
+      - windows-domain
+    description: >
+      Bi-annual access review for all privileged accounts in Entra ID and
+      Active Directory. Orphaned accounts removed within 30 days.
+
+stakeholders:
+  - name: platform-team
+    role: owner
+
+  - name: it-security
+    role: security
+
+  - name: end-users
+    role: user
