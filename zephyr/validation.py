@@ -11,8 +11,10 @@ from zephyr.models import (
     ALLOWED_RISK_SEVERITIES,
     Architecture,
     Component,
+    Control,
     Flow,
     Risk,
+    Stakeholder,
 )
 from zephyr.datamodel import (
     AUTH_TYPES,
@@ -463,7 +465,15 @@ def architecture_from_data(data: dict[str, Any]) -> Architecture:
         name=data["name"],
         description=data.get("description", ""),
         components=[
-            Component(name=item["name"], type=item["type"])
+            Component(
+                name=item["name"],
+                type=item["type"],
+                description=item.get("description", ""),
+                domain=item.get("domain", ""),
+                criticality=item.get("criticality", ""),
+                exposure=item.get("exposure", ""),
+                lifecycle=item.get("lifecycle", ""),
+            )
             for item in data.get("components", [])
         ],
         flows=[
@@ -471,6 +481,10 @@ def architecture_from_data(data: dict[str, Any]) -> Architecture:
                 source=item["from"],
                 target=item["to"],
                 label=item.get("label", ""),
+                protocol=item.get("protocol", ""),
+                authentication=item.get("authentication", ""),
+                encryption=item.get("encryption", ""),
+                direction=item.get("direction", ""),
             )
             for item in data.get("flows", [])
         ],
@@ -479,8 +493,28 @@ def architecture_from_data(data: dict[str, Any]) -> Architecture:
                 id=item["id"],
                 title=item["title"],
                 severity=item["severity"],
+                description=item.get("description", ""),
+                mitigation=item.get("mitigation", ""),
+                likelihood=item.get("likelihood", ""),
+                impact=item.get("impact", ""),
             )
             for item in data.get("risks", [])
+        ],
+        controls=[
+            Control(
+                name=item["name"],
+                type=item["type"],
+                applies_to=item.get("applies_to", []),
+                description=item.get("description", ""),
+            )
+            for item in data.get("controls", [])
+        ],
+        stakeholders=[
+            Stakeholder(
+                name=item["name"],
+                role=item["role"],
+            )
+            for item in data.get("stakeholders", [])
         ],
     )
 
