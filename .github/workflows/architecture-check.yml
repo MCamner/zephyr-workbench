@@ -1,0 +1,46 @@
+name: Architecture Check
+
+on:
+  pull_request:
+    paths:
+      - "examples/**/*.yaml"
+      - "examples/**/*.yml"
+
+jobs:
+  validate:
+    name: Validate architecture models
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install zephyr
+        run: pip install -e .
+
+      - name: Validate all models
+        run: |
+          for f in examples/*.yaml; do
+            echo "Validating $f..."
+            zephyr validate "$f"
+          done
+
+      - name: Diff changed models
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          changed=$(git diff --name-only origin/${{ github.base_ref }} HEAD -- 'examples/*.yaml')
+          if [ -z "$changed" ]; then
+            echo "No architecture files changed."
+            exit 0
+          fi
+          for f in $changed; do
+            base_version=$(git show origin/${{ github.base_ref }}:"$f" 2>/dev/null) || continue
+            echo "$base_version" > /tmp/base_arch.yaml
+            echo "--- diff: $f ---"
+            zephyr diff /tmp/base_arch.yaml "$f" || true
+          done

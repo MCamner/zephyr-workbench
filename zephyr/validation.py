@@ -457,6 +457,58 @@ def collect_validation_warnings(data: dict[str, Any]) -> list[str]:
                 f"MFA flow target should be an identity component ({source} -> {target})"
             )
 
+    warnings += _collect_rule_warnings(data)
+    return warnings
+
+
+def _collect_rule_warnings(data: dict[str, Any]) -> list[str]:
+    """Generate warnings from a model's rules.require block.
+
+    Example YAML::
+
+        rules:
+          require:
+            component: [criticality, domain]
+            flow: [encryption, authentication]
+            risk: [mitigation]
+    """
+    warnings: list[str] = []
+    rules = data.get("rules")
+    if not isinstance(rules, dict):
+        return warnings
+
+    require = rules.get("require")
+    if not isinstance(require, dict):
+        return warnings
+
+    section_map = {
+        "component": ("components", "name"),
+        "flow": ("flows", None),
+        "risk": ("risks", "id"),
+        "control": ("controls", "name"),
+        "stakeholder": ("stakeholders", "name"),
+    }
+
+    for section, fields in require.items():
+        if section not in section_map or not isinstance(fields, list):
+            continue
+        yaml_key, id_field = section_map[section]
+        for item in data.get(yaml_key) or []:
+            if not isinstance(item, dict):
+                continue
+            # build a human-readable label
+            if id_field and item.get(id_field):
+                label = f"{section} '{item[id_field]}'"
+            elif section == "flow":
+                label = f"flow {item.get('from')} → {item.get('to')}"
+            else:
+                label = section
+            for field in fields:
+                if not isinstance(field, str):
+                    continue
+                if not item.get(field):
+                    warnings.append(f"{label} is missing required field: {field}")
+
     return warnings
 
 

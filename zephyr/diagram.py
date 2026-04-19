@@ -36,9 +36,25 @@ _HTML_TEMPLATE = """\
     </div>
   </div>
   <script>mermaid.initialize({{ startOnLoad: true, theme: 'default' }});</script>
+  {livereload_script}
 </body>
 </html>
 """
+
+_LIVERELOAD_SCRIPT = """\
+<script>
+(function() {
+  var last = null;
+  setInterval(function() {
+    fetch(location.href + '?_t=' + Date.now(), {{cache: 'no-store'}})
+      .then(function(r) {{ return r.text(); }})
+      .then(function(html) {{
+        if (last !== null && html !== last) {{ location.reload(); }}
+        last = html;
+      }}).catch(function() {{}});
+  }, 1000);
+})();
+</script>"""
 
 _TYPE_TO_CLASS = {
     "actor": "actor",
@@ -115,7 +131,7 @@ def to_mermaid(architecture: Architecture) -> str:
     return "\n".join(lines)
 
 
-def to_html(architecture: Architecture) -> str:
+def to_html(architecture: Architecture, livereload: bool = False) -> str:
     mermaid = to_mermaid(architecture)
     description_block = (
         f'<p class="description">{architecture.description}</p>'
@@ -126,4 +142,5 @@ def to_html(architecture: Architecture) -> str:
         title=architecture.name,
         description_block=description_block,
         mermaid=mermaid,
+        livereload_script=_LIVERELOAD_SCRIPT if livereload else "",
     )
