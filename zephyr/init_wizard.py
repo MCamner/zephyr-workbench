@@ -24,6 +24,9 @@ from zephyr.datamodel import (
 )
 from zephyr.validation import ValidationError, load_validated_architecture
 
+# Options with more than this many items get a numbered list instead of inline display.
+_LIST_THRESHOLD = 4
+
 
 def run_init_wizard(
     output_path: str | None = None,
@@ -36,7 +39,6 @@ def run_init_wizard(
 
     print("Zephyr Init Wizard")
     print("Mode: minimal V1" if minimal else "Mode: guided V1")
-    print("")
 
     model = build_architecture_model(minimal=minimal)
     default_path = output_path or f"examples/{model['name']}.yaml"
@@ -47,7 +49,7 @@ def run_init_wizard(
         should_validate = _prompt_yes_no("Run validation now?", default=True)
 
     write_yaml_file(model, chosen_path)
-    print(f"Saved: {chosen_path}")
+    print(f"\nSaved: {chosen_path}")
 
     if not should_validate:
         return 0
@@ -57,16 +59,17 @@ def run_init_wizard(
     except ValidationError as error:
         print("Validation failed:")
         for message in error.errors:
-            print(f"- {message}")
+            print(f"  - {message}")
         return 1
 
-    print("Validation succeeded.")
+    print("Validation passed.")
     return 0
 
 
 def prompt_meta(minimal: bool) -> dict:
+    _print_section("Architecture")
     meta = {
-        "name": _prompt_required_text("Architecture name"),
+        "name": _prompt_required_text("Name"),
         "description": _prompt_text("Description", default=""),
     }
     if not minimal:
@@ -77,6 +80,7 @@ def prompt_meta(minimal: bool) -> dict:
 
 
 def prompt_components(minimal: bool) -> list[dict]:
+    _print_section("Components")
     components: list[dict] = []
 
     while _prompt_yes_no("Add component?", default=not components):
@@ -85,7 +89,6 @@ def prompt_components(minimal: bool) -> list[dict]:
         suggested_domain = TYPE_TO_DOMAIN.get(component_type)
 
         if suggested_domain:
-            print(f"Suggested domain: {suggested_domain}")
             domain = _prompt_choice("Domain", DOMAINS, default=suggested_domain)
         else:
             domain = _prompt_choice("Domain", DOMAINS)
@@ -110,11 +113,13 @@ def prompt_components(minimal: bool) -> list[dict]:
             component["lifecycle"] = _prompt_choice("Lifecycle", LIFECYCLES, default="active")
 
         components.append(component)
+        print(f"  Added: {name} ({component_type})")
 
     return components
 
 
 def prompt_flows(component_names: list[str], minimal: bool) -> list[dict]:
+    _print_section("Flows")
     flows: list[dict] = []
 
     while _prompt_yes_no("Add flow?", default=bool(component_names) and not flows):
@@ -140,11 +145,13 @@ def prompt_flows(component_names: list[str], minimal: bool) -> list[dict]:
             flow["direction"] = direction
 
         flows.append(flow)
+        print(f"  Added: {flow['from']} → {flow['to']}")
 
     return flows
 
 
 def prompt_risks(minimal: bool) -> list[dict]:
+    _print_section("Risks")
     risks: list[dict] = []
 
     while _prompt_yes_no("Add risk?", default=False):
@@ -168,39 +175,42 @@ def prompt_risks(minimal: bool) -> list[dict]:
                 risk["mitigation"] = mitigation
 
         risks.append(risk)
+        print(f"  Added: [{risk['severity'].upper()}] {risk['id']}: {risk['title']}")
 
     return risks
 
 
 def prompt_controls(component_names: list[str]) -> list[dict]:
+    _print_section("Controls")
     controls: list[dict] = []
 
     if not component_names:
         return controls
 
     while _prompt_yes_no("Add control?", default=False):
-        controls.append(
-            {
-                "name": _prompt_required_text("Name"),
-                "type": _prompt_choice("Control type", CONTROL_TYPES),
-                "applies_to": _prompt_multi_choice("Applies to", component_names),
-                "description": _prompt_text("Description", default=""),
-            }
-        )
+        name = _prompt_required_text("Name")
+        control = {
+            "name": name,
+            "type": _prompt_choice("Control type", CONTROL_TYPES),
+            "applies_to": _prompt_multi_choice("Applies to", component_names),
+            "description": _prompt_text("Description", default=""),
+        }
+        controls.append(control)
+        targets = ", ".join(control["applies_to"])
+        print(f"  Added: {name} [{control['type']}] → {targets}")
 
     return controls
 
 
 def prompt_stakeholders() -> list[dict]:
+    _print_section("Stakeholders")
     stakeholders: list[dict] = []
 
     while _prompt_yes_no("Add stakeholder?", default=not stakeholders):
-        stakeholders.append(
-            {
-                "name": _prompt_required_text("Name"),
-                "role": _prompt_choice("Role", STAKEHOLDER_ROLES),
-            }
-        )
+        name = _prompt_required_text("Name")
+        role = _prompt_choice("Role", STAKEHOLDER_ROLES)
+        stakeholders.append({"name": name, "role": role})
+        print(f"  Added: {name} ({role})")
 
     return stakeholders
 
@@ -248,8 +258,14 @@ def write_yaml_file(model: dict, output_path: str) -> None:
     path.write_text(contents, encoding="utf-8")
 
 
+def _print_section(title: str) -> None:
+    width = 48
+    dashes = "─" * max(0, width - len(title) - 3)
+    print(f"\n── {title} {dashes}")
+
+
 def _prompt_text(label: str, default: str | None = None) -> str:
-    prompt = f"{label}"
+    prompt = f"  {label}"
     if default is not None:
         prompt += f" [{default}]"
     prompt += ": "
@@ -267,34 +283,42 @@ def _prompt_required_text(label: str) -> str:
         value = _prompt_text(label)
         if value:
             return value
-        print(f"{label} is required.")
+        print(f"  {label} is required.")
 
 
 def _prompt_multi_choice(label: str, options: list[str]) -> list[str]:
-    """Prompt the user to select one or more items from a list."""
-    option_text = "/".join(options)
-    print(f"{label} — pick one or more from: {option_text}")
-    print("Enter each selection on its own line. Empty line when done.")
+    """Select one or more items from a numbered list. Empty line confirms."""
     selected: list[str] = []
     while True:
-        value = input(f"  {label}: ").strip()
+        print(f"\n  {label} (empty line when done):")
+        for i, opt in enumerate(options, 1):
+            check = "✓" if opt in selected else " "
+            print(f"    [{check}] {i:2}. {opt}")
+        value = input("  → ").strip()
         if not value:
             if selected:
                 return selected
-            print("At least one selection is required.")
+            print("  At least one selection is required.")
             continue
-        if value not in options:
-            print(f"Invalid selection. Choose one of: {option_text}")
+        resolved = _resolve_option(value, options)
+        if resolved is None:
+            print(f"  Invalid. Enter a number (1–{len(options)}) or exact name.")
             continue
-        if value in selected:
-            print(f"Already added: {value}")
+        if resolved in selected:
+            print(f"  Already added: {resolved}")
             continue
-        selected.append(value)
+        selected.append(resolved)
 
 
 def _prompt_choice(label: str, options: list[str], default: str | None = None) -> str:
+    if len(options) > _LIST_THRESHOLD:
+        return _prompt_choice_list(label, options, default)
+    return _prompt_choice_inline(label, options, default)
+
+
+def _prompt_choice_inline(label: str, options: list[str], default: str | None = None) -> str:
     option_text = "/".join(options)
-    prompt = f"{label} [{option_text}]"
+    prompt = f"  {label} [{option_text}]"
     if default is not None:
         prompt += f" [{default}]"
     prompt += ": "
@@ -305,13 +329,38 @@ def _prompt_choice(label: str, options: list[str], default: str | None = None) -
             return default
         if value in options:
             return value
-        print(f"Invalid selection. Choose one of: {option_text}")
+        print(f"  Invalid selection. Choose one of: {option_text}")
+
+
+def _prompt_choice_list(label: str, options: list[str], default: str | None = None) -> str:
+    while True:
+        print(f"\n  {label}:")
+        for i, opt in enumerate(options, 1):
+            marker = "  ← default" if opt == default else ""
+            print(f"    {i:2}. {opt}{marker}")
+        hint = f" [{default}]" if default else ""
+        value = input(f"  → {hint}: ").strip()
+        if not value and default is not None:
+            return default
+        resolved = _resolve_option(value, options)
+        if resolved is not None:
+            return resolved
+        print(f"  Invalid. Enter a number (1–{len(options)}) or exact name.")
+
+
+def _resolve_option(value: str, options: list[str]) -> str | None:
+    """Return the option matching the input (by number or exact name), or None."""
+    if value.isdigit():
+        idx = int(value) - 1
+        if 0 <= idx < len(options):
+            return options[idx]
+        return None
+    return value if value in options else None
 
 
 def _prompt_yes_no(label: str, default: bool) -> bool:
-    suffix = "y/n"
-    prompt = f"{label} ({suffix})"
-    prompt += ": " if default is None else f" [{'Y/n' if default else 'y/N'}]: "
+    suffix = "Y/n" if default else "y/N"
+    prompt = f"  {label} [{suffix}]: "
 
     while True:
         value = input(prompt).strip().lower()
@@ -321,4 +370,4 @@ def _prompt_yes_no(label: str, default: bool) -> bool:
             return True
         if value in {"n", "no"}:
             return False
-        print("Please answer y or n.")
+        print("  Please answer y or n.")

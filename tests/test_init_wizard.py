@@ -176,7 +176,7 @@ def test_prompt_multi_choice_rejects_invalid_and_duplicate(
 
     assert result == ["vpn", "macbook"]
     out = capsys.readouterr().out
-    assert "Invalid selection" in out
+    assert "Invalid" in out
     assert "Already added" in out
 
 
