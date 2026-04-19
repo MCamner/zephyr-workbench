@@ -149,3 +149,82 @@ def test_invalid_selection_is_blocked_until_valid(
     assert result == "actor"
     captured = capsys.readouterr()
     assert "Invalid selection. Choose one of: actor/endpoint" in captured.out
+
+
+def test_prompt_multi_choice_returns_multiple_selections(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    answers = iter(["macbook", "vpn", ""])
+    monkeypatch.setattr("builtins.input", lambda _: next(answers))
+
+    from zephyr.init_wizard import _prompt_multi_choice
+
+    result = _prompt_multi_choice("Applies to", ["macbook", "vpn", "entra-id"])
+
+    assert result == ["macbook", "vpn"]
+
+
+def test_prompt_multi_choice_rejects_invalid_and_duplicate(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    answers = iter(["bad", "vpn", "vpn", "macbook", ""])
+    monkeypatch.setattr("builtins.input", lambda _: next(answers))
+
+    from zephyr.init_wizard import _prompt_multi_choice
+
+    result = _prompt_multi_choice("Applies to", ["macbook", "vpn"])
+
+    assert result == ["vpn", "macbook"]
+    out = capsys.readouterr().out
+    assert "Invalid selection" in out
+    assert "Already added" in out
+
+
+def test_control_applies_to_multiple_components(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    output_path = tmp_path / "multi-control.yaml"
+    answers = iter(
+        [
+            "multi-control-arch",  # name
+            "",                    # description
+            "platform-team",       # owner
+            "",                    # environment
+            "",                    # criticality
+            "y",                   # add component?
+            "macbook",             # name
+            "endpoint",            # type
+            "",                    # domain
+            "",                    # description
+            "",                    # criticality
+            "",                    # exposure
+            "",                    # lifecycle
+            "y",                   # add component?
+            "vpn",                 # name
+            "access-gateway",      # type
+            "",                    # domain
+            "",                    # description
+            "",                    # criticality
+            "",                    # exposure
+            "",                    # lifecycle
+            "n",                   # add component?
+            "n",                   # add flow?
+            "n",                   # add risk?
+            "y",                   # add control?
+            "enforce-mfa",         # control name
+            "technical",           # control type
+            "macbook",             # applies_to first
+            "vpn",                 # applies_to second
+            "",                    # applies_to done
+            "",                    # control description
+            "n",                   # add another control?
+            "n",                   # add stakeholder?
+        ]
+    )
+    monkeypatch.setattr("builtins.input", lambda _: next(answers))
+
+    exit_code = run_init_wizard(output_path=str(output_path), validate=False)
+
+    assert exit_code == 0
+    data = yaml.safe_load(output_path.read_text(encoding="utf-8"))
+    assert data["controls"][0]["applies_to"] == ["macbook", "vpn"]

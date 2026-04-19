@@ -104,7 +104,7 @@ def prompt_components(minimal: bool) -> list[dict]:
             if description:
                 component["description"] = description
             component["criticality"] = _prompt_choice(
-                "Criticality", CRITICALITIES[:-1], default="medium"
+                "Criticality", CRITICALITIES, default="medium"
             )
             component["exposure"] = _prompt_choice("Exposure", EXPOSURES, default="internal")
             component["lifecycle"] = _prompt_choice("Lifecycle", LIFECYCLES, default="active")
@@ -183,7 +183,7 @@ def prompt_controls(component_names: list[str]) -> list[dict]:
             {
                 "name": _prompt_required_text("Name"),
                 "type": _prompt_choice("Control type", CONTROL_TYPES),
-                "applies_to": [_prompt_choice("Applies to", component_names)],
+                "applies_to": _prompt_multi_choice("Applies to", component_names),
                 "description": _prompt_text("Description", default=""),
             }
         )
@@ -268,6 +268,28 @@ def _prompt_required_text(label: str) -> str:
         if value:
             return value
         print(f"{label} is required.")
+
+
+def _prompt_multi_choice(label: str, options: list[str]) -> list[str]:
+    """Prompt the user to select one or more items from a list."""
+    option_text = "/".join(options)
+    print(f"{label} — pick one or more from: {option_text}")
+    print("Enter each selection on its own line. Empty line when done.")
+    selected: list[str] = []
+    while True:
+        value = input(f"  {label}: ").strip()
+        if not value:
+            if selected:
+                return selected
+            print("At least one selection is required.")
+            continue
+        if value not in options:
+            print(f"Invalid selection. Choose one of: {option_text}")
+            continue
+        if value in selected:
+            print(f"Already added: {value}")
+            continue
+        selected.append(value)
 
 
 def _prompt_choice(label: str, options: list[str], default: str | None = None) -> str:
