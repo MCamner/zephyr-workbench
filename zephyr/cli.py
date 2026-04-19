@@ -14,9 +14,82 @@ from zephyr.init_wizard import run_init_wizard
 from zephyr.validation import ValidationError, load_validation_result
 
 
+_HELP_TEXT = """\
+Zephyr Workbench — model, validate, and visualize architecture.
+
+Describe your infrastructure in YAML. Zephyr validates it, summarizes it,
+and generates diagrams. Every model is version-controllable and diffable.
+
+Quick start
+  1. zephyr templates                   browse starter models
+  2. zephyr init --template <name>      create a model from a template
+  3. zephyr run <file>                  validate + summary + diagram
+
+Commands
+
+  run <file>
+    Full pipeline in one step: validate, print summary, write diagram.
+    • --format mermaid      write a .mmd file (default)
+    • --format html         write an .html file — open directly in browser
+    • --output-dir <dir>    where to write the diagram [default: output/]
+
+  validate <file>
+    Check a model for errors and warnings.
+    • Errors block the pipeline (missing fields, invalid values, bad references)
+    • Warnings flag risky patterns (single gateway, endpoint-to-endpoint flows)
+
+  summary <file>
+    Print a structured summary: components, flows, risks, controls, stakeholders.
+    • --json    output as machine-readable JSON
+
+  diagram <file> --format <fmt>
+    Generate a diagram without running the full pipeline.
+    • --format mermaid      Mermaid graph syntax
+    • --format html         self-contained HTML page
+    • --output <path>       write to file instead of stdout
+
+  diff <file-a> <file-b>
+    Compare two models and show what changed.
+    • + added   - removed   ~ modified (with old → new values per field)
+    • Exits 1 when changes exist, 0 when identical — use in CI pipelines
+
+  init
+    Create a new model interactively (guided wizard).
+    • --template <name>     start from a template, skip the wizard
+    • --minimal             skip optional fields for a faster flow
+    • --no-validate         skip validation after writing
+
+  templates
+    List available starter templates with descriptions.
+
+  reference
+    Show all valid values for every enum field (type, criticality, auth...).
+
+  help
+    Show this message.
+
+Model structure
+  Every model is a YAML file. Required fields:
+  • name          identifier for this architecture
+  • components    systems, endpoints, identities, and controls
+  • flows         directed connections between components
+
+  Optional but recommended:
+  • risks         weaknesses with severity, likelihood, impact, mitigation
+  • controls      technical, policy, or process measures with applies_to
+  • stakeholders  people or teams and their roles
+  • meta          owner, environment, criticality, version
+
+Tips
+  • Not sure what value to use? Run: zephyr reference
+  • Want a head start?        Run: zephyr templates
+  • Automate change detection:     zephyr diff v1.yaml v2.yaml (CI-friendly)
+  • Fast HTML diagram:             zephyr run <file> --format html
+"""
+
+
 def print_help() -> None:
-    parser = _build_parser()
-    parser.print_help()
+    print(_HELP_TEXT)
 
 
 def _print_validation_error(error: ValidationError) -> None:
@@ -57,6 +130,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     subparsers.add_parser("reference", help="Show all valid field values")
     subparsers.add_parser("templates", help="List available starter templates")
+    subparsers.add_parser("help", help="Show detailed usage guide")
 
     diff_parser = subparsers.add_parser("diff", help="Compare two architecture YAML files")
     diff_parser.add_argument("file_a", metavar="FILE_A")
@@ -116,9 +190,9 @@ def main() -> None:
     parser = _build_parser()
     args = parser.parse_args(sys.argv[1:])
 
-    if not args.command:
-        parser.print_help()
-        raise SystemExit(1)
+    if not args.command or args.command == "help":
+        print_help()
+        raise SystemExit(0)
 
     try:
         if args.command == "validate":

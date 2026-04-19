@@ -101,6 +101,25 @@ def test_validate_command_reports_warnings_for_smart_rules(tmp_path: Path) -> No
     assert "Validation passed with warnings: warning-case" in result.stdout
 
 
+def test_help_command_prints_usage_guide() -> None:
+    result = run_cli("help")
+
+    assert result.returncode == 0
+    assert "Quick start" in result.stdout
+    assert "Commands" in result.stdout
+    assert "Model structure" in result.stdout
+    assert "Tips" in result.stdout
+    for cmd in ("run", "validate", "summary", "diagram", "diff", "init", "templates", "reference"):
+        assert cmd in result.stdout
+
+
+def test_no_command_prints_help() -> None:
+    result = run_cli()
+
+    assert result.returncode == 0
+    assert "Quick start" in result.stdout
+
+
 def test_run_command_reports_warnings_when_present(tmp_path: Path) -> None:
     path = tmp_path / "warnings.yaml"
     data = {
