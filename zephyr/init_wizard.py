@@ -22,6 +22,7 @@ from zephyr.datamodel import (
     STAKEHOLDER_ROLES,
     TYPE_TO_DOMAIN,
 )
+from zephyr.templates import get_template, list_templates, template_names
 from zephyr.validation import ValidationError, load_validated_architecture
 
 # Options with more than this many items get a numbered list instead of inline display.
@@ -35,7 +36,7 @@ def run_init_wizard(
     template: str | None = None,
 ) -> int:
     if template:
-        print(f"Template '{template}' is not implemented yet; continuing with the default model.")
+        return _run_from_template(template, output_path=output_path, validate=validate)
 
     print("Zephyr Init Wizard")
     print("Mode: minimal V1" if minimal else "Mode: guided V1")
@@ -52,6 +53,42 @@ def run_init_wizard(
     print(f"\nSaved: {chosen_path}")
 
     if not should_validate:
+        return 0
+
+    try:
+        load_validated_architecture(chosen_path)
+    except ValidationError as error:
+        print("Validation failed:")
+        for message in error.errors:
+            print(f"  - {message}")
+        return 1
+
+    print("Validation passed.")
+    return 0
+
+
+def _run_from_template(
+    template_name: str,
+    output_path: str | None = None,
+    validate: bool = True,
+) -> int:
+    model = get_template(template_name)
+    if model is None:
+        available = ", ".join(template_names())
+        print(f"Unknown template '{template_name}'. Available: {available}")
+        return 1
+
+    print(f"Template: {template_name}")
+    name = _prompt_text("Architecture name", default=model["name"])
+    model["name"] = name
+
+    default_path = output_path or f"examples/{name}.yaml"
+    chosen_path = output_path or _prompt_text("Output file", default=default_path)
+
+    write_yaml_file(model, chosen_path)
+    print(f"\nSaved: {chosen_path}")
+
+    if not validate:
         return 0
 
     try:

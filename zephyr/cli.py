@@ -9,6 +9,7 @@ from zephyr.analyzer import load_architecture, summarize_architecture, summarize
 from zephyr.diagram import to_html, to_mermaid
 from zephyr.diff import diff_architectures, format_diff
 from zephyr.reference import build_reference
+from zephyr.templates import list_templates
 from zephyr.init_wizard import run_init_wizard
 from zephyr.validation import ValidationError, load_validation_result
 
@@ -55,6 +56,7 @@ def _build_parser() -> argparse.ArgumentParser:
     diagram_parser.add_argument("--output", help="Write diagram output to a file instead of stdout")
 
     subparsers.add_parser("reference", help="Show all valid field values")
+    subparsers.add_parser("templates", help="List available starter templates")
 
     diff_parser = subparsers.add_parser("diff", help="Compare two architecture YAML files")
     diff_parser.add_argument("file_a", metavar="FILE_A")
@@ -166,6 +168,10 @@ def main() -> None:
 
         if args.command == "reference":
             print(build_reference())
+            return
+
+        if args.command == "templates":
+            print(list_templates())
             return
 
         if args.command == "diff":
