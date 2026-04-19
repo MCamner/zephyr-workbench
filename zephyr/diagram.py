@@ -1,5 +1,45 @@
 from zephyr.models import Architecture
 
+_HTML_TEMPLATE = """\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{title}</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <style>
+    body {{
+      font-family: system-ui, -apple-system, sans-serif;
+      margin: 2rem auto;
+      max-width: 1100px;
+      background: #f7f8fa;
+      color: #1a1a1a;
+    }}
+    h1 {{ font-size: 1.4rem; margin-bottom: 0.2rem; }}
+    .description {{ color: #555; font-size: 0.9rem; margin-bottom: 2rem; }}
+    .diagram {{
+      background: #fff;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      overflow-x: auto;
+    }}
+  </style>
+</head>
+<body>
+  <h1>{title}</h1>
+  {description_block}
+  <div class="diagram">
+    <div class="mermaid">
+{mermaid}
+    </div>
+  </div>
+  <script>mermaid.initialize({{ startOnLoad: true, theme: 'default' }});</script>
+</body>
+</html>
+"""
+
 _TYPE_TO_CLASS = {
     "actor": "actor",
     "endpoint": "endpoint",
@@ -73,3 +113,17 @@ def to_mermaid(architecture: Architecture) -> str:
             lines.append(f"    {source} --> {target}")
 
     return "\n".join(lines)
+
+
+def to_html(architecture: Architecture) -> str:
+    mermaid = to_mermaid(architecture)
+    description_block = (
+        f'<p class="description">{architecture.description}</p>'
+        if architecture.description
+        else ""
+    )
+    return _HTML_TEMPLATE.format(
+        title=architecture.name,
+        description_block=description_block,
+        mermaid=mermaid,
+    )

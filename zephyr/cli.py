@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from zephyr.analyzer import load_architecture, summarize_architecture, summarize_architecture_data
-from zephyr.diagram import to_mermaid
+from zephyr.diagram import to_html, to_mermaid
 from zephyr.init_wizard import run_init_wizard
 from zephyr.validation import ValidationError, load_validation_result
 
@@ -47,9 +47,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Output the summary as JSON",
     )
 
-    diagram_parser = subparsers.add_parser("diagram", help="Render a Mermaid diagram from an architecture")
+    diagram_parser = subparsers.add_parser("diagram", help="Render a diagram from an architecture")
     diagram_parser.add_argument("file")
-    diagram_parser.add_argument("--format", choices=["mermaid"], required=True)
+    diagram_parser.add_argument("--format", choices=["mermaid", "html"], required=True)
     diagram_parser.add_argument("--output", help="Write diagram output to a file instead of stdout")
 
     init_parser = subparsers.add_parser("init", help="Create a new architecture YAML file")
@@ -77,12 +77,18 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     run_parser.add_argument(
         "--format",
-        choices=["mermaid"],
+        choices=["mermaid", "html"],
         default="mermaid",
         help="Diagram format to generate",
     )
 
     return parser
+
+
+def _render_diagram(architecture, format_name: str) -> str:
+    if format_name == "html":
+        return to_html(architecture)
+    return to_mermaid(architecture)
 
 
 def _write_text_output(contents: str, output_path: str) -> None:
@@ -124,7 +130,7 @@ def main() -> None:
 
         if args.command == "diagram":
             architecture = load_architecture(args.file)
-            diagram = to_mermaid(architecture)
+            diagram = _render_diagram(architecture, args.format)
             if args.output:
                 _write_text_output(diagram, args.output)
                 print(f"Diagram generated: {args.output}")
@@ -136,7 +142,7 @@ def main() -> None:
             result = load_validation_result(args.file)
             architecture = result.architecture
             diagram_path = _default_diagram_path(args.file, args.output_dir, args.format)
-            diagram = to_mermaid(architecture)
+            diagram = _render_diagram(architecture, args.format)
             _write_text_output(diagram, str(diagram_path))
 
             _print_warnings(result.warnings)
