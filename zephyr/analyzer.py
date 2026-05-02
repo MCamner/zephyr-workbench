@@ -4,7 +4,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Union
 
-from zephyr.models import Architecture
+from zephyr.models import Architecture, Meta
 from zephyr.validation import load_validated_architecture
 
 
@@ -20,6 +20,17 @@ def summarize_architecture(architecture: Architecture) -> str:
     ]
     if summary["description"]:
         lines.append(f"Description: {summary['description']}")
+
+    meta = summary.get("meta")
+    if meta:
+        if meta.get("owner"):
+            lines.append(f"Owner:        {meta['owner']}")
+        if meta.get("version"):
+            lines.append(f"Version:      {meta['version']}")
+        if meta.get("criticality"):
+            lines.append(f"Criticality:  {meta['criticality']}")
+        if meta.get("environment"):
+            lines.append(f"Environment:  {', '.join(meta['environment'])}")
 
     lines += [
         f"Components:   {summary['components']}",
@@ -69,6 +80,7 @@ def summarize_architecture_data(architecture: Architecture) -> dict:
     return {
         "name": architecture.name,
         "description": architecture.description,
+        "meta": asdict(architecture.meta) if architecture.meta else None,
         "components": len(architecture.components),
         "flows": len(architecture.flows),
         "risks": len(architecture.risks),

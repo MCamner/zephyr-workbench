@@ -1,10 +1,20 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Optional
 
 from zephyr.datamodel import COMPONENT_TYPES, SEVERITIES
 
 ALLOWED_COMPONENT_TYPES = set(COMPONENT_TYPES)
 ALLOWED_RISK_SEVERITIES = set(SEVERITIES)
+
+
+@dataclass
+class Meta:
+    owner: str = ""
+    version: str = ""
+    criticality: str = ""
+    environment: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -58,6 +68,7 @@ class Stakeholder:
 class Architecture:
     name: str
     description: str = ""
+    meta: Optional[Meta] = None
     components: List[Component] = field(default_factory=list)
     flows: List[Flow] = field(default_factory=list)
     risks: List[Risk] = field(default_factory=list)

@@ -13,6 +13,7 @@ from zephyr.models import (
     Component,
     Control,
     Flow,
+    Meta,
     Risk,
     Stakeholder,
 )
@@ -512,10 +513,23 @@ def _collect_rule_warnings(data: dict[str, Any]) -> list[str]:
     return warnings
 
 
+def _meta_from_data(data: dict[str, Any]) -> Meta | None:
+    raw = data.get("meta")
+    if not isinstance(raw, dict):
+        return None
+    return Meta(
+        owner=raw.get("owner", ""),
+        version=raw.get("version", ""),
+        criticality=raw.get("criticality", ""),
+        environment=raw.get("environment") or [],
+    )
+
+
 def architecture_from_data(data: dict[str, Any]) -> Architecture:
     return Architecture(
         name=data["name"],
         description=data.get("description", ""),
+        meta=_meta_from_data(data),
         components=[
             Component(
                 name=item["name"],

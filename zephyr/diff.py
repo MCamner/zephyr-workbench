@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-from zephyr.models import Architecture, Component, Control, Flow, Risk, Stakeholder
+from zephyr.models import Architecture, Component, Control, Flow, Meta, Risk, Stakeholder
 
 Status = Literal["added", "removed", "modified"]
 
@@ -20,6 +20,7 @@ class Change:
 class ArchitectureDiff:
     source: str
     target: str
+    meta: Change | None
     components: list[Change]
     flows: list[Change]
     risks: list[Change]
@@ -28,6 +29,7 @@ class ArchitectureDiff:
 
     def is_empty(self) -> bool:
         return not any([
+            self.meta,
             self.components,
             self.flows,
             self.risks,
@@ -45,6 +47,7 @@ def diff_architectures(
     return ArchitectureDiff(
         source=source,
         target=target,
+        meta=_diff_meta(a.meta, b.meta),
         components=_diff_components(a.components, b.components),
         flows=_diff_flows(a.flows, b.flows),
         risks=_diff_risks(a.risks, b.risks),
@@ -60,6 +63,14 @@ def format_diff(diff: ArchitectureDiff) -> str:
         lines.append("No changes detected.")
         return "\n".join(lines)
 
+    if diff.meta:
+        lines.append("Meta:")
+        symbol = {"added": "+", "removed": "-", "modified": "~"}[diff.meta.status]
+        lines.append(f"  {symbol} {diff.meta.label}")
+        for fname, old_val, new_val in diff.meta.fields:
+            lines.append(f"      {fname}: {old_val or '(empty)'} → {new_val or '(empty)'}")
+        lines.append("")
+
     sections = [
         ("Components", diff.components),
         ("Flows", diff.flows),
@@ -68,8 +79,9 @@ def format_diff(diff: ArchitectureDiff) -> str:
         ("Stakeholders", diff.stakeholders),
     ]
 
-    changed = [name for name, changes in sections if changes]
     unchanged = [name for name, changes in sections if not changes]
+    if diff.meta is None:
+        unchanged = ["meta"] + unchanged
 
     for name, changes in sections:
         if not changes:
@@ -212,6 +224,21 @@ def _diff_stakeholders(old: list[Stakeholder], new: list[Stakeholder]) -> list[C
                 ))
 
     return changes
+
+
+def _diff_meta(a: Meta | None, b: Meta | None) -> Change | None:
+    if a is None and b is None:
+        return None
+    if a is None:
+        return Change(status="added", label="meta")
+    if b is None:
+        return Change(status="removed", label="meta")
+    fields = _field_changes(a, b, ("owner", "version", "criticality"))
+    a_env = ", ".join(a.environment)
+    b_env = ", ".join(b.environment)
+    if a_env != b_env:
+        fields.append(("environment", a_env, b_env))
+    return Change(status="modified", label="meta", fields=fields) if fields else None
 
 
 def _field_changes(old, new, attrs: tuple[str, ...]) -> list[tuple[str, str, str]]:

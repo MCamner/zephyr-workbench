@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from zephyr.diff import ArchitectureDiff, Change, diff_architectures, format_diff
-from zephyr.models import Architecture, Component, Control, Flow, Risk, Stakeholder
+from zephyr.models import Architecture, Component, Control, Flow, Meta, Risk, Stakeholder
 
 
 def _arch(**kwargs) -> Architecture:
@@ -116,9 +116,64 @@ def test_format_diff_shows_symbols() -> None:
     assert "criticality" in output
 
 
+def test_meta_owner_change_detected() -> None:
+    a = _arch()
+    a.meta = Meta(owner="ops-team", version="v1")
+    b = _arch()
+    b.meta = Meta(owner="sec-team", version="v1")
+    diff = diff_architectures(a, b)
+    assert diff.meta is not None
+    assert diff.meta.status == "modified"
+    assert diff.meta.fields == [("owner", "ops-team", "sec-team")]
+
+
+def test_meta_added_when_only_target_has_it() -> None:
+    a = _arch()
+    b = _arch()
+    b.meta = Meta(owner="ops-team")
+    diff = diff_architectures(a, b)
+    assert diff.meta is not None
+    assert diff.meta.status == "added"
+
+
+def test_meta_removed_when_only_source_has_it() -> None:
+    a = _arch()
+    a.meta = Meta(owner="ops-team")
+    b = _arch()
+    diff = diff_architectures(a, b)
+    assert diff.meta is not None
+    assert diff.meta.status == "removed"
+
+
+def test_meta_none_when_both_absent() -> None:
+    diff = diff_architectures(_arch(), _arch())
+    assert diff.meta is None
+
+
+def test_meta_none_when_both_identical() -> None:
+    a = _arch()
+    a.meta = Meta(owner="ops-team", version="v1", environment=["prod"])
+    b = _arch()
+    b.meta = Meta(owner="ops-team", version="v1", environment=["prod"])
+    diff = diff_architectures(a, b)
+    assert diff.meta is None
+
+
+def test_format_diff_shows_meta_change() -> None:
+    a = _arch()
+    a.meta = Meta(owner="ops-team", version="v1")
+    b = _arch()
+    b.meta = Meta(owner="sec-team", version="v1")
+    diff = diff_architectures(a, b)
+    output = format_diff(diff)
+    assert "Meta:" in output
+    assert "~ meta" in output
+    assert "owner: ops-team → sec-team" in output
+
+
 def test_format_diff_lists_unchanged_sections() -> None:
     a = _arch(components=[Component(name="vpn", type="remote-access")])
     b = _arch(components=[Component(name="idp", type="identity-provider")])
     diff = diff_architectures(a, b)
     output = format_diff(diff)
-    assert "No changes: flows, risks, controls, stakeholders" in output
+    assert "No changes: meta, flows, risks, controls, stakeholders" in output
