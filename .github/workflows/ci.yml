@@ -31,6 +31,7 @@ jobs:
           python -m zephyr.cli validate examples/secure-workplace.yaml
           python -m zephyr.cli validate examples/identity-flow.yaml
           python -m zephyr.cli validate examples/macos-intune-windows-domain.yaml
+          python -m zephyr.cli validate examples/macos-intune-secure-access.yaml
 
       - name: Run CLI smoke tests
         run: |
