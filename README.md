@@ -10,18 +10,18 @@ CLI-based architecture workbench for modeling infrastructure, identity, and work
 
 ---
 
-## 🔥 Case Study
+## Case Study
 
-Most architectures look right.  
+Most architectures look right.
 Few are validated.
 
 Zephyr models a real enterprise setup — **macOS + Intune + Entra ID + on-prem AD** — and exposes hidden risks instantly.
 
-- ⚠️ Finds failure points  
-- 🔐 Reveals trust gaps  
-- 📐 Outputs summary + diagram in seconds  
+- Finds failure points
+- Reveals trust gaps
+- Outputs summary + diagram in seconds
 
-👉 [View the full case](docs/case-macos-enterprise.md)
+[View the full case](docs/case-macos-enterprise.md)
 
 ### Architecture preview
 
@@ -31,36 +31,24 @@ From model → validated → visualized:
 
 ---
 
-## ⚡ V1 at a glance
-
-- YAML in  
-- Validation first  
-- Warnings for risky architecture patterns  
-- Text summary out  
-- Mermaid diagram out  
-- CLI-first workflow  
-
----
-
-## 🚀 Quick start
+## Quick start
 
 ```bash
 python3.11 -m venv .venv
 source .venv/bin/activate
-
-python -m pip install -e ".[dev]"
-
-python -m zephyr.cli init --minimal
-python -m zephyr.cli run examples/macos-intune-windows-domain.yaml
+pip install -e ".[dev]"
 ```
 
-**Fastest path:**
-- `init` → create model  
-- `run` → validate + summary + diagram  
+```bash
+zephyr init --minimal          # create a model interactively
+zephyr run examples/macos-intune-windows-domain.yaml
+```
+
+**Fastest path:** `init` → create model, `run` → validate + summary + diagram
 
 ---
 
-## 🎥 Demo
+## Demo
 
 ![Zephyr demo](docs/demo.gif)
 
@@ -68,108 +56,179 @@ Minimal init, end-to-end run, and diagram preview in one short terminal flow.
 
 ---
 
-## 🧠 What it does
+## What it does
 
 Zephyr Workbench helps you:
 
-- Describe infrastructure systems in a structured format  
-- Analyze components, flows, and risks  
-- Validate architecture models before rendering  
-- Generate architecture summaries  
-- Produce diagram-ready output  
+- Describe infrastructure systems in a structured YAML format
+- Validate models before rendering — errors block, warnings inform
+- Generate structured summaries: components, flows, risks, controls, stakeholders
+- Produce Mermaid or HTML diagrams
+- Diff two models to see what changed
+- Search across components, flows, and risks by field value
 
 Built for real-world architecture where **identity, endpoints, and trust boundaries matter**.
 
 ---
 
-## 📐 Example output
+## Commands
+
+| Command | What it does |
+| ------- | ------------ |
+| `zephyr run <file>` | Validate + summary + diagram in one step |
+| `zephyr validate <file>` | Check for errors and warnings |
+| `zephyr summary <file>` | Print structured summary (`--json` for machine output) |
+| `zephyr diagram <file>` | Generate diagram (`--format mermaid\|html\|png`) |
+| `zephyr diff <a> <b>` | Compare two models, exits 1 if changes exist |
+| `zephyr add <file>` | Add components, flows, risks, controls, or stakeholders interactively |
+| `zephyr search <file> <query>` | Filter by field, e.g. `type=endpoint`, `severity=high`, `missing=mitigation` |
+| `zephyr init` | Create a new model (wizard or `--template <name>`) |
+| `zephyr templates` | List available starter templates |
+| `zephyr reference` | Show all valid field values |
+| `zephyr help` | Full usage guide |
+
+### Useful flags
+
+```bash
+zephyr run <file> --format html --open      # open diagram in browser immediately
+zephyr run <file> --format html --watch     # live-reload on file changes
+zephyr summary <file> --json               # machine-readable output
+zephyr diagram <file> --format png         # PNG export (requires mmdc)
+```
+
+---
+
+## Example output
 
 ```text
-Validation passed with warnings
+zephyr run examples/macos-intune-windows-domain.yaml
+```
+
+```text
+Validation passed
 
 Architecture: macos-intune-windows-domain
-Components: 8
-Flows: 6
-Risks: 3
+Owner:        platform-team
+Version:      v1
+Criticality:  mission-critical
+Environment:  prod
+Components:   8
+Flows:        6
+Risks:        3
+Controls:     3
+Stakeholders: 3
 
 Risks:
-- [HIGH] R1: VPN gateway as single point of failure
-- [MEDIUM] R2: Certificate lifecycle not clearly defined
+- [HIGH] R1: Unclear trust boundary between Entra-managed identity and on-prem domain access
+  likelihood: high | impact: high
+  Mitigation: Implement Entra ID Kerberos to bridge cloud and on-prem identity.
+
+- [MEDIUM] R2: Certificate dependency not documented for secure access
+  likelihood: medium | impact: high
+  Mitigation: Configure SCEP-based auto-renewal via Intune.
+
+Diagram generated: output/macos-intune-windows-domain.mmd
 ```
 
 ---
 
-## 🎬 Generate diagrams
+## Model structure
 
-```bash
-python -m zephyr.cli diagram examples/macos-intune-windows-domain.yaml --format mermaid
-```
-
----
-
-## 🧪 Real-world example
-
-```bash
-python -m zephyr.cli run examples/macos-intune-windows-domain.yaml
-```
-
-This example models:
-
-- macOS devices enrolled in Intune  
-- Entra ID identity flows  
-- Conditional Access  
-- VPN and certificate-based access  
-- On-prem Windows domain integration  
-
----
-
-## 📦 Core model
-
-Zephyr uses a simple structure:
-
-- **components** → systems, endpoints, identities, and controls  
-- **flows** → interactions and dependencies  
-- **risks** → weaknesses and failure points  
-
-**Input:** YAML  
-**Output:** structured, repeatable architecture data  
-
----
-
-## 📐 V1 model contract
+Every model is a YAML file. The full schema is at `schemas/architecture.schema.yaml`.
 
 **Required:**
-- `name`
-- `components`
-- `flows`
 
-**Optional:**
-- `description`
-- `risks`
+```yaml
+name: my-architecture
+components:
+  - name: api
+    type: application
+flows:
+  - from: api
+    to: api
+    label: self
+```
 
-**Validation includes:**
-- Unique component names  
-- Valid flow references  
-- Allowed component types  
-- Risk severity validation  
+**Optional top-level fields:**
 
-**Smart warnings include:**
-- Endpoint-to-endpoint flows  
-- Missing identity termination  
-- Single access-gateway patterns  
+| Field | Description |
+| ----- | ----------- |
+| `description` | Free-text description shown in summary |
+| `meta` | Owner, version, criticality, environment |
+| `risks` | Weaknesses with severity, likelihood, impact, mitigation |
+| `controls` | Technical, policy, or process measures with `applies_to` |
+| `stakeholders` | People or teams with roles |
+| `rules` | Per-model required fields that generate warnings |
 
-Contract: `schemas/architecture.schema.yaml`
+**Example with meta:**
+
+```yaml
+meta:
+  owner: platform-team
+  version: v1
+  criticality: mission-critical
+  environment: [prod]
+```
+
+**Example rules block:**
+
+```yaml
+rules:
+  require:
+    component: [criticality, domain]
+    risk: [mitigation]
+```
 
 ---
 
-## 🧠 Why Zephyr
+## Validation
+
+**Errors** block the pipeline:
+
+- Missing required fields (`name`, `components`, `flows`)
+- Invalid field values (component type, risk severity, etc.)
+- Duplicate component names or risk IDs
+- Flow references to non-existent components
+
+**Warnings** flag risky patterns:
+
+- Endpoint-to-endpoint flows
+- Single access-gateway (SPOF)
+- MFA flow targeting a non-identity component
+- Custom per-model rules via `rules.require`
+
+---
+
+## Project structure
+
+```text
+zephyr/      CLI and core logic
+  loader.py      YAML loading and model construction
+  validation.py  Validation rules and warnings
+  analyzer.py    Summary generation
+  diagram.py     Mermaid and HTML rendering
+  diff.py        Model comparison
+  search.py      Field filtering
+  add.py         Interactive item addition
+  init_wizard.py Model creation wizard
+  templates.py   Starter templates
+  reference.py   Valid field values
+examples/    Sample architectures
+schemas/     Field reference (architecture.schema.yaml)
+tests/       88 tests
+docs/        Case studies and assets
+```
+
+---
+
+## Why Zephyr
 
 Architecture is usually:
 
-- Fragmented across slides  
-- Inconsistent between teams  
-- Hard to reason about  
-- Difficult to validate before implementation  
+- Fragmented across slides
+- Inconsistent between teams
+- Hard to reason about
+- Difficult to validate before implementation
 
 Zephyr makes architecture:
 
@@ -179,39 +238,15 @@ Define once → validate → analyze → visualize → reuse.
 
 ---
 
-## 🏗️ Project structure
+## Philosophy
 
-```text
-zephyr/      CLI and core logic
-examples/    sample architectures
-schemas/     model reference
-tests/       validation and checks
-docs/        case studies and assets
-```
+- Model first, diagram later
+- Structure over slides
+- Simplicity over abstraction
+- Built for real operations
 
 ---
 
-## 🧭 Philosophy
-
-- Model first, diagram later  
-- Structure over slides  
-- Simplicity over abstraction  
-- Built for real operations  
-
----
-
-## 📄 Status
-
-Early V1.
-
-Current focus:
-
-- Stabilizing model contract  
-- Expanding validation coverage  
-- Improving summary and diagram output  
-
----
-
-## 📄 License
+## License
 
 MIT
