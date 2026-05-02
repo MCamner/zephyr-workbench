@@ -1,0 +1,290 @@
+name: pki-infrastructure
+description: >
+  Two-tier PKI with an offline root CA and an online issuing CA, backed by HSM
+  key storage. Certificate lifecycle managed through SCEP enrollment, OCSP for
+  real-time revocation status, and CRL distribution for offline validation.
+
+meta:
+  version: v1
+  owner: security-team
+  environment: [prod]
+  criticality: mission-critical
+
+domains:
+  - business
+  - application
+  - data
+  - technology
+
+components:
+  - name: root-ca
+    type: pki
+    description: >
+      Offline root CA — kept air-gapped except during issuing CA certificate
+      renewal. Signs only subordinate CA certificates. Private key stored in HSM.
+    domain: technology
+    criticality: mission-critical
+    exposure: internal
+    lifecycle: active
+
+  - name: issuing-ca
+    type: pki
+    description: >
+      Online issuing CA — signs end-entity certificates for devices, users, and
+      services. Private key stored in HSM. Subordinate to root-ca.
+    domain: technology
+    criticality: mission-critical
+    exposure: internal
+    lifecycle: active
+
+  - name: hsm
+    type: security-control
+    description: >
+      Hardware Security Module — stores and protects all CA private keys.
+      Signing operations are performed inside the HSM; keys never leave in plaintext.
+    domain: technology
+    criticality: mission-critical
+    exposure: internal
+    lifecycle: active
+
+  - name: scep-service
+    type: application
+    description: >
+      SCEP/NDES enrollment service — handles automated certificate requests from
+      endpoints and MDM-managed devices. Validates challenge passwords before
+      forwarding requests to the issuing CA.
+    domain: application
+    criticality: high
+    exposure: internal
+    lifecycle: active
+
+  - name: ocsp-responder
+    type: application
+    description: >
+      Online Certificate Status Protocol responder — provides real-time revocation
+      status for certificates issued by the issuing CA. Signed responses cached
+      to reduce CA load.
+    domain: application
+    criticality: high
+    exposure: internal
+    lifecycle: active
+
+  - name: cdp
+    type: application
+    description: >
+      CRL Distribution Point — hosts Certificate Revocation Lists for environments
+      that cannot reach the OCSP responder. Updated on every revocation event and
+      at scheduled intervals.
+    domain: application
+    criticality: high
+    exposure: internal
+    lifecycle: active
+
+  - name: enrollment-client
+    type: endpoint
+    description: >
+      Endpoint or service requesting certificates — can be a device, user workstation,
+      server, or MDM-enrolled asset. Initiates SCEP requests.
+    domain: technology
+    criticality: high
+    exposure: internal
+    lifecycle: active
+
+  - name: ca-admin-workstation
+    type: endpoint
+    description: >
+      Dedicated hardened workstation used by PKI administrators for CA operations,
+      HSM administration, and policy changes. Network-isolated except for CA management.
+    domain: technology
+    criticality: mission-critical
+    exposure: internal
+    lifecycle: active
+
+flows:
+  - from: issuing-ca
+    to: root-ca
+    label: subordinate CA certificate signing (offline ceremony)
+    authentication: certificate
+    encryption: ipsec
+    direction: outbound
+
+  - from: issuing-ca
+    to: hsm
+    label: signing operations
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
+  - from: root-ca
+    to: hsm
+    label: root key operations
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
+  - from: enrollment-client
+    to: scep-service
+    label: certificate request
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
+  - from: scep-service
+    to: issuing-ca
+    label: forward validated request
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
+  - from: enrollment-client
+    to: ocsp-responder
+    label: revocation status check
+    protocol: https
+    encryption: tls
+    direction: outbound
+
+  - from: enrollment-client
+    to: cdp
+    label: CRL download
+    protocol: https
+    encryption: tls
+    direction: outbound
+
+  - from: ca-admin-workstation
+    to: issuing-ca
+    label: CA administration
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
+risks:
+  - id: R1
+    title: Root CA private key compromise invalidates the entire PKI
+    severity: critical
+    likelihood: low
+    impact: high
+    description: >
+      If the root CA private key is compromised, all certificates signed by the
+      hierarchy are untrusted. Recovery requires rebuilding the entire PKI and
+      re-issuing all certificates — a major operational event.
+    mitigation: >
+      Store root CA key exclusively in HSM. Keep root CA physically air-gapped
+      and powered off between ceremonies. Require multi-person authorization
+      (M-of-N) for any root CA operation. Conduct key ceremony with auditors present.
+
+  - id: R2
+    title: OCSP or CRL unavailability blocks certificate validation
+    severity: high
+    likelihood: medium
+    impact: high
+    description: >
+      Applications and endpoints that enforce OCSP or CRL checks will fail closed
+      if the revocation service is unreachable. This can cause widespread service
+      disruption even when certificates themselves are valid.
+    mitigation: >
+      Deploy OCSP responder in HA configuration with load balancing. Pre-generate
+      and cache signed OCSP responses. Provide CDP as a fallback. Monitor both
+      services with automated health checks and alerting.
+
+  - id: R3
+    title: SCEP enrollment service may issue certificates to unauthorized requesters
+    severity: high
+    likelihood: medium
+    impact: high
+    description: >
+      If SCEP challenge passwords are reused, leaked, or guessed, an attacker
+      could enroll unauthorized devices and obtain valid certificates that are
+      trusted across the environment.
+    mitigation: >
+      Use single-use SCEP challenge passwords generated and distributed via MDM.
+      Enforce RA authorization review for non-MDM enrollment paths. Log all
+      enrollment events and alert on unexpected volumes.
+
+  - id: R4
+    title: HSM single point of failure halts all certificate issuance
+    severity: high
+    likelihood: low
+    impact: high
+    description: >
+      Both CAs depend on the HSM for signing operations. An HSM hardware failure
+      stops all certificate issuance and renewal until the HSM is repaired or
+      a backup unit is restored.
+    mitigation: >
+      Deploy a secondary HSM in a clustered configuration. Maintain a tested
+      key backup and restore procedure. Store encrypted key backup offline in
+      a physically secured location.
+
+  - id: R5
+    title: Certificate expiry causes silent access failures
+    severity: medium
+    likelihood: high
+    impact: medium
+    description: >
+      End-entity certificates with short validity windows that are not auto-renewed
+      will expire and break authentication silently for devices and services that
+      do not surface expiry warnings to administrators.
+    mitigation: >
+      Configure SCEP auto-renewal triggered at 80% of certificate lifetime.
+      Build a certificate inventory report from issuing CA logs and alert on
+      certificates expiring within 30 days.
+
+controls:
+  - name: hsm-key-protection
+    type: technical
+    applies_to:
+      - root-ca
+      - issuing-ca
+      - hsm
+    description: >
+      All CA private keys are generated inside the HSM and never exported in
+      plaintext. HSM enforces M-of-N authorization for sensitive operations.
+
+  - name: air-gapped-root-ca
+    type: policy
+    applies_to:
+      - root-ca
+      - ca-admin-workstation
+    description: >
+      Root CA is powered off and network-isolated at all times except during
+      documented key ceremonies. Ceremonies require two authorized administrators
+      and are logged and audited.
+
+  - name: scep-single-use-passwords
+    type: technical
+    applies_to:
+      - scep-service
+      - enrollment-client
+    description: >
+      SCEP challenge passwords are generated per-device by MDM, valid for one
+      enrollment, and expire after 24 hours. All enrollment events are logged.
+
+  - name: revocation-monitoring
+    type: technical
+    applies_to:
+      - ocsp-responder
+      - cdp
+    description: >
+      Automated health checks verify OCSP response time and CRL freshness every
+      5 minutes. Alerts fire if OCSP response time exceeds 2 seconds or CRL age
+      exceeds the configured threshold.
+
+  - name: certificate-inventory-review
+    type: process
+    applies_to:
+      - issuing-ca
+    description: >
+      Monthly review of all issued certificates. Certificates issued outside of
+      automated MDM flows require a change request and owner sign-off.
+
+stakeholders:
+  - name: security-team
+    role: owner
+
+  - name: platform-team
+    role: operator
+
+  - name: it-security
+    role: security

@@ -1,0 +1,243 @@
+name: igel-os12-infrastructure
+description: >
+  IGEL OS12 thin client infrastructure with centralized management via UMS,
+  internet-connected devices routed through IGEL Cloud Gateway, cloud identity
+  with Entra ID, and VDI delivery via a session broker.
+
+meta:
+  version: v1
+  owner: platform-team
+  environment: [prod]
+  criticality: high
+
+domains:
+  - business
+  - application
+  - data
+  - technology
+
+components:
+  - name: igel-endpoint
+    type: endpoint
+    description: IGEL OS12 thin client — stateless, firmware-locked, PKI-enrolled
+    domain: technology
+    criticality: high
+    exposure: internal
+    lifecycle: active
+
+  - name: ums
+    type: device-management
+    description: IGEL Universal Management Suite — firmware deployment, configuration profiles, policy enforcement
+    domain: application
+    criticality: mission-critical
+    exposure: internal
+    lifecycle: active
+
+  - name: icg
+    type: access-gateway
+    description: IGEL Cloud Gateway — encrypted relay for remote devices connecting from outside the corporate network
+    domain: technology
+    criticality: high
+    exposure: external
+    lifecycle: active
+
+  - name: entra-id
+    type: cloud-identity
+    description: Entra ID as the primary user identity provider with MFA and Conditional Access
+    domain: application
+    criticality: mission-critical
+    exposure: external
+    lifecycle: active
+
+  - name: conditional-access
+    type: access-policy
+    description: Entra ID Conditional Access — enforces device compliance and MFA before granting VDI session
+    domain: application
+    criticality: high
+    exposure: external
+    lifecycle: active
+
+  - name: vdi-broker
+    type: application
+    description: VDI session broker (e.g. Citrix, VMware Horizon, or Azure Virtual Desktop) handling session routing
+    domain: application
+    criticality: high
+    exposure: external
+    lifecycle: active
+
+  - name: virtual-desktop
+    type: application
+    description: Pooled or dedicated virtual desktops provisioned on demand per user session
+    domain: application
+    criticality: high
+    exposure: internal
+    lifecycle: active
+
+  - name: certificate-authority
+    type: pki
+    description: Internal PKI issuing device certificates for IGEL endpoint authentication via SCEP
+    domain: technology
+    criticality: high
+    exposure: internal
+    lifecycle: active
+
+flows:
+  - from: igel-endpoint
+    to: ums
+    label: management (internal)
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
+  - from: igel-endpoint
+    to: icg
+    label: management relay (remote)
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
+  - from: icg
+    to: ums
+    label: relay management traffic
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
+  - from: igel-endpoint
+    to: entra-id
+    label: user sign-in
+    protocol: https
+    authentication: mfa
+    encryption: tls
+    direction: outbound
+
+  - from: entra-id
+    to: conditional-access
+    label: evaluate device and user policy
+    protocol: https
+    encryption: tls
+    direction: outbound
+
+  - from: igel-endpoint
+    to: vdi-broker
+    label: launch VDI session
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
+  - from: vdi-broker
+    to: virtual-desktop
+    label: provision desktop session
+    protocol: https
+    encryption: tls
+    direction: outbound
+
+  - from: igel-endpoint
+    to: certificate-authority
+    label: obtain device certificate
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
+risks:
+  - id: R1
+    title: UMS is a single point of management failure
+    severity: high
+    likelihood: medium
+    impact: high
+    description: >
+      All endpoint configuration, firmware updates, and policy enforcement flow
+      through UMS. An outage or compromise means no configuration changes can be
+      pushed and existing endpoints may drift out of compliance.
+    mitigation: >
+      Deploy UMS in a high-availability configuration with a standby instance.
+      Regularly back up UMS configuration and test restore procedures.
+
+  - id: R2
+    title: ICG internet exposure increases attack surface
+    severity: high
+    likelihood: medium
+    impact: high
+    description: >
+      ICG is publicly reachable to support remote IGEL endpoints. A misconfiguration
+      or vulnerability in ICG could expose the management plane to external attackers.
+    mitigation: >
+      Harden ICG with TLS mutual authentication and restrict inbound traffic to
+      known IGEL endpoint certificate fingerprints. Monitor ICG access logs continuously.
+
+  - id: R3
+    title: Stale firmware on endpoints creates known vulnerability exposure
+    severity: medium
+    likelihood: medium
+    impact: high
+    description: >
+      IGEL OS12 endpoints not receiving timely firmware updates may carry known CVEs.
+      Without enforced update windows, endpoints in remote sites or offline for extended
+      periods may fall significantly behind.
+    mitigation: >
+      Configure UMS to enforce firmware update policies with defined maintenance windows.
+      Alert on endpoints that have not checked in or updated within a defined threshold.
+
+  - id: R4
+    title: VDI session data in transit depends on encryption enforcement at broker
+    severity: medium
+    likelihood: low
+    impact: high
+    description: >
+      If TLS is not enforced end-to-end between the thin client and virtual desktop,
+      session traffic may traverse unencrypted segments, especially over ICG relays.
+    mitigation: >
+      Enforce TLS for all broker and session protocols. Review VDI broker settings
+      to ensure no plain-text fallback is permitted.
+
+controls:
+  - name: certificate-based-device-auth
+    type: technical
+    applies_to:
+      - igel-endpoint
+      - certificate-authority
+      - ums
+    description: >
+      IGEL endpoints are issued device certificates via SCEP during enrollment.
+      All management and VDI flows require a valid device certificate.
+
+  - name: conditional-access-enforcement
+    type: technical
+    applies_to:
+      - conditional-access
+      - entra-id
+    description: >
+      Conditional Access policies block VDI access unless the device is compliant
+      and the user has completed MFA. Evaluated on every session launch.
+
+  - name: ums-config-backup
+    type: process
+    applies_to:
+      - ums
+    description: >
+      Weekly automated backup of UMS configuration exported and stored offsite.
+      Monthly restore test to validate backup integrity.
+
+  - name: firmware-update-policy
+    type: policy
+    applies_to:
+      - igel-endpoint
+      - ums
+    description: >
+      All IGEL endpoints must run firmware no older than 60 days. UMS enforces
+      this at next check-in and alerts on non-compliant devices.
+
+stakeholders:
+  - name: platform-team
+    role: owner
+
+  - name: it-security
+    role: security
+
+  - name: end-users
+    role: user
