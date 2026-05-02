@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
 from generate_js_core import _generate_enums, _generate_diagram, _generate_templates, _replace_sections
 
-from zephyr.datamodel import COMPONENT_TYPES, CRITICALITIES, SEVERITIES
+from zephyr.datamodel import COMPONENT_TYPES, CRITICALITIES
 from zephyr.diagram import _CLASS_DEFS, _TYPE_TO_CLASS
 from zephyr.templates import template_names
 
