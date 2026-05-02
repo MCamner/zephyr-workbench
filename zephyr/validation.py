@@ -1,22 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
-import yaml
-
-from zephyr.models import (
-    ALLOWED_COMPONENT_TYPES,
-    ALLOWED_RISK_SEVERITIES,
-    Architecture,
-    Component,
-    Control,
-    Flow,
-    Meta,
-    Risk,
-    Stakeholder,
-)
 from zephyr.datamodel import (
     AUTH_TYPES,
     CONTROL_TYPES,
@@ -31,36 +17,26 @@ from zephyr.datamodel import (
     LIFECYCLES,
     STAKEHOLDER_ROLES,
 )
+from zephyr.loader import ValidationError, architecture_from_data, load_architecture_data
+from zephyr.models import ALLOWED_COMPONENT_TYPES, ALLOWED_RISK_SEVERITIES, Architecture
 
-
-class ValidationError(ValueError):
-    def __init__(self, errors: list[str]) -> None:
-        self.errors = errors
-        super().__init__("\n".join(errors))
+# Re-export so all existing `from zephyr.validation import ValidationError` imports keep working.
+__all__ = [
+    "ValidationError",
+    "ValidationResult",
+    "validate_architecture_data",
+    "collect_validation_warnings",
+    "load_validated_architecture",
+    "load_validation_result",
+    "load_architecture_data",
+    "architecture_from_data",
+]
 
 
 @dataclass
 class ValidationResult:
     architecture: Architecture
     warnings: list[str]
-
-
-def load_architecture_data(path: str | Path) -> dict[str, Any]:
-    file_path = Path(path)
-    try:
-        contents = file_path.read_text(encoding="utf-8")
-    except FileNotFoundError as error:
-        raise ValidationError([f"{file_path}: file not found"]) from error
-
-    try:
-        data = yaml.safe_load(contents)
-    except yaml.YAMLError as error:
-        raise ValidationError([f"{file_path}: invalid YAML: {error}"]) from error
-
-    if not isinstance(data, dict):
-        raise ValidationError([f"{file_path}: root document must be a YAML mapping"])
-
-    return data
 
 
 def validate_architecture_data(data: dict[str, Any]) -> None:
@@ -463,16 +439,6 @@ def collect_validation_warnings(data: dict[str, Any]) -> list[str]:
 
 
 def _collect_rule_warnings(data: dict[str, Any]) -> list[str]:
-    """Generate warnings from a model's rules.require block.
-
-    Example YAML::
-
-        rules:
-          require:
-            component: [criticality, domain]
-            flow: [encryption, authentication]
-            risk: [mitigation]
-    """
     warnings: list[str] = []
     rules = data.get("rules")
     if not isinstance(rules, dict):
@@ -497,7 +463,6 @@ def _collect_rule_warnings(data: dict[str, Any]) -> list[str]:
         for item in data.get(yaml_key) or []:
             if not isinstance(item, dict):
                 continue
-            # build a human-readable label
             if id_field and item.get(id_field):
                 label = f"{section} '{item[id_field]}'"
             elif section == "flow":
@@ -511,78 +476,6 @@ def _collect_rule_warnings(data: dict[str, Any]) -> list[str]:
                     warnings.append(f"{label} is missing required field: {field}")
 
     return warnings
-
-
-def _meta_from_data(data: dict[str, Any]) -> Meta | None:
-    raw = data.get("meta")
-    if not isinstance(raw, dict):
-        return None
-    return Meta(
-        owner=raw.get("owner", ""),
-        version=raw.get("version", ""),
-        criticality=raw.get("criticality", ""),
-        environment=raw.get("environment") or [],
-    )
-
-
-def architecture_from_data(data: dict[str, Any]) -> Architecture:
-    return Architecture(
-        name=data["name"],
-        description=data.get("description", ""),
-        meta=_meta_from_data(data),
-        components=[
-            Component(
-                name=item["name"],
-                type=item["type"],
-                description=item.get("description", ""),
-                domain=item.get("domain", ""),
-                criticality=item.get("criticality", ""),
-                exposure=item.get("exposure", ""),
-                lifecycle=item.get("lifecycle", ""),
-            )
-            for item in data.get("components", [])
-        ],
-        flows=[
-            Flow(
-                source=item["from"],
-                target=item["to"],
-                label=item.get("label", ""),
-                protocol=item.get("protocol", ""),
-                authentication=item.get("authentication", ""),
-                encryption=item.get("encryption", ""),
-                direction=item.get("direction", ""),
-            )
-            for item in data.get("flows", [])
-        ],
-        risks=[
-            Risk(
-                id=item["id"],
-                title=item["title"],
-                severity=item["severity"],
-                description=item.get("description", ""),
-                mitigation=item.get("mitigation", ""),
-                likelihood=item.get("likelihood", ""),
-                impact=item.get("impact", ""),
-            )
-            for item in data.get("risks", [])
-        ],
-        controls=[
-            Control(
-                name=item["name"],
-                type=item["type"],
-                applies_to=item.get("applies_to", []),
-                description=item.get("description", ""),
-            )
-            for item in data.get("controls", [])
-        ],
-        stakeholders=[
-            Stakeholder(
-                name=item["name"],
-                role=item["role"],
-            )
-            for item in data.get("stakeholders", [])
-        ],
-    )
 
 
 def load_validated_architecture(path: str | Path) -> Architecture:
