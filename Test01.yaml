@@ -1,0 +1,22 @@
+name: Test01
+description: Test av workbench
+meta:
+  version: v1
+domains:
+- business
+- application
+- data
+- technology
+components:
+- name: Macbook Air M4
+  type: endpoint
+  domain: technology
+  criticality: medium
+  exposure: internal
+  lifecycle: active
+flows:
+- from: Macbook Air M4
+  to: Macbook Air M4
+  label: Endpoint
+  direction: outbound
+risks: []

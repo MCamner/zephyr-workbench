@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zephyr Workbench</title>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script src="zephyr-core.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--bg2:#161b22;--bg3:#1c2128;--bg4:#22272e;
+  --border:#30363d;--border2:#3d444d;
+  --text:#e6edf3;--text2:#8b949e;--text3:#6e7681;
+  --green:#3fb950;--green-dim:#1a3827;
+  --amber:#d29922;--amber-dim:#2e2006;
+  --red:#f85149;--red-dim:#3d1c1c;
+  --blue:#58a6ff;--blue-dim:#0d2d5e;
+  --purple:#bc8cff;
+  --mono:'JetBrains Mono','Cascadia Code','Fira Code','Consolas',monospace;
+  --sans:'Inter','Segoe UI',system-ui,sans-serif;
+  --sidebar:220px;--drawer:320px;
+}
+html,body,#root{height:100%;width:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* layout */
+.app{display:flex;height:100vh;overflow:hidden}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;position:relative}
+.content-area{flex:1;display:flex;overflow:hidden;min-height:0}
+
+/* sidebar */
+.sidebar{width:var(--sidebar);min-width:var(--sidebar);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.sidebar-logo{padding:16px 16px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.sidebar-logo-mark{width:26px;height:26px;background:var(--green);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#000;font-family:var(--mono);flex-shrink:0}
+.sidebar-logo-text{font-size:13px;font-weight:600;color:var(--text);letter-spacing:.3px;line-height:1.2}
+.sidebar-logo-sub{font-size:10px;color:var(--text3);font-weight:400}
+.sidebar-section{padding:12px 8px 4px}
+.sidebar-section-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;padding:0 8px;margin-bottom:4px}
+.nav-item{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;cursor:pointer;color:var(--text2);font-size:12.5px;font-weight:500;transition:all .12s;user-select:none;border:none;background:none;width:100%;text-align:left}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:var(--green-dim);color:var(--green)}
+.nav-item .nav-icon{font-size:14px;width:16px;text-align:center;flex-shrink:0}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:9px;font-weight:700;border-radius:8px;padding:1px 5px;min-width:16px;text-align:center}
+.nav-badge.warn{background:var(--amber);color:#000}
+.nav-badge.ok{background:var(--green);color:#000}
+.sidebar-files{flex:1;overflow-y:auto;padding:8px}
+.file-item{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:5px;cursor:pointer;color:var(--text2);font-size:11.5px;font-family:var(--mono);transition:all .1s;user-select:none}
+.file-item:hover{background:var(--bg3);color:var(--text)}
+.file-item.active{background:var(--bg4);color:var(--text)}
+.file-item .fi-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;background:var(--text3)}
+.file-item.has-errors .fi-dot{background:var(--red)}
+.file-item.has-warnings .fi-dot{background:var(--amber)}
+.file-item.valid .fi-dot{background:var(--green)}
+.sidebar-actions{padding:8px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:4px}
+.btn-sidebar{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:5px;cursor:pointer;background:transparent;border:1px solid var(--border);color:var(--text2);font-size:11.5px;font-family:var(--sans);transition:all .12s;width:100%;text-align:left}
+.btn-sidebar:hover{background:var(--bg3);border-color:var(--border2);color:var(--text)}
+
+/* topbar */
+.topbar{height:40px;min-height:40px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;overflow:hidden;gap:0}
+.topbar-filename{font-family:var(--mono);font-size:12px;color:var(--text2);margin-right:12px;white-space:nowrap}
+.topbar-filename span{color:var(--text)}
+.topbar-tabs{display:flex;gap:2px;overflow-x:auto;flex:1}
+.tab-btn{padding:5px 12px;border-radius:4px;cursor:pointer;background:transparent;border:none;color:var(--text3);font-size:12px;font-family:var(--sans);font-weight:500;white-space:nowrap;transition:all .1s}
+.tab-btn:hover{color:var(--text2);background:var(--bg3)}
+.tab-btn.active{color:var(--text);background:var(--bg4)}
+.topbar-status{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0}
+.status-pill{display:flex;align-items:center;gap:5px;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.status-pill.ok{background:var(--green-dim);color:var(--green)}
+.status-pill.error{background:var(--red-dim);color:var(--red)}
+.status-pill.warn{background:var(--amber-dim);color:var(--amber)}
+.status-pill.idle{background:var(--bg4);color:var(--text3)}
+.status-dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+
+/* panels */
+.panel{flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0}
+.panel-body{flex:1;overflow-y:auto;padding:20px 24px;min-height:0}
+
+/* editor */
+.editor-wrap{flex:1;display:flex;flex-direction:column;min-height:0}
+.editor-textarea{flex:1;width:100%;min-height:0;background:var(--bg);color:var(--text);border:none;outline:none;resize:none;font-family:var(--mono);font-size:12.5px;line-height:1.7;padding:20px 24px;tab-size:2}
+.editor-footer{padding:6px 16px;background:var(--bg2);border-top:1px solid var(--border);display:flex;align-items:center;gap:12px;font-size:11px;color:var(--text3);flex-shrink:0}
+.editor-footer-btn{padding:4px 10px;border-radius:4px;cursor:pointer;background:var(--green);color:#000;border:none;font-size:11px;font-weight:600;font-family:var(--sans);transition:opacity .1s}
+.editor-footer-btn:hover{opacity:.85}
+.editor-footer-btn.secondary{background:var(--bg4);color:var(--text2);border:1px solid var(--border);margin-left:0}
+.editor-footer-btn.secondary:hover{background:var(--bg3);color:var(--text);opacity:1}
+
+/* validation */
+.val-item{display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border-radius:5px;margin-bottom:4px;font-size:12px;line-height:1.5}
+.val-item.error{background:var(--red-dim);color:#f8c4c2;border-left:3px solid var(--red)}
+.val-item.warning{background:var(--amber-dim);color:#f0d080;border-left:3px solid var(--amber)}
+.val-item.ok{background:var(--green-dim);color:#a0e0b0;border-left:3px solid var(--green)}
+.val-icon{flex-shrink:0;font-size:13px;margin-top:1px}
+
+/* summary */
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin-bottom:24px}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:12px 14px}
+.stat-num{font-size:24px;font-weight:700;font-family:var(--mono);color:var(--text);line-height:1.1}
+.stat-label{font-size:11px;color:var(--text3);margin-top:3px;text-transform:uppercase;letter-spacing:.4px}
+.section-header{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin:20px 0 8px;display:flex;align-items:center;gap:8px}
+.section-header::after{content:"";flex:1;height:1px;background:var(--border)}
+
+/* rows — clickable */
+.risk-row{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:6px;margin-bottom:6px;background:var(--bg2);border:1px solid var(--border);transition:border-color .1s,background .1s;cursor:pointer}
+.risk-row:hover{border-color:var(--blue);background:var(--bg3)}
+.risk-id{font-family:var(--mono);font-size:10px;color:var(--text3);flex-shrink:0;padding-top:2px;width:24px}
+.risk-body{flex:1}
+.risk-title{font-size:12.5px;font-weight:500;color:var(--text);margin-bottom:4px}
+.risk-meta{display:flex;gap:6px;flex-wrap:wrap}
+.risk-mitigation{font-size:11.5px;color:var(--text2);margin-top:5px;line-height:1.5}
+.severity-badge{font-size:10px;font-weight:600;padding:1px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.3px}
+.sev-critical{background:#4a1818;color:#ff7b72}
+.sev-high{background:var(--red-dim);color:var(--red)}
+.sev-medium{background:var(--amber-dim);color:var(--amber)}
+.sev-low{background:var(--green-dim);color:var(--green)}
+.tag{font-size:10px;padding:1px 6px;border-radius:4px;background:var(--bg4);color:var(--text2);font-family:var(--mono);border:1px solid var(--border)}
+.component-row{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:5px;margin-bottom:3px;background:var(--bg2);border:1px solid var(--border);font-size:12px;cursor:pointer;transition:border-color .1s,background .1s}
+.component-row:hover{border-color:var(--blue);background:var(--bg3)}
+.comp-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+.comp-name{font-weight:500;color:var(--text);flex:1;font-family:var(--mono);font-size:11.5px}
+.comp-type{color:var(--text3);font-size:11px}
+.flow-row{display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:5px;margin-bottom:3px;background:var(--bg2);border:1px solid var(--border);font-size:11.5px;flex-wrap:wrap;cursor:pointer;transition:border-color .1s,background .1s}
+.flow-row:hover{border-color:var(--blue);background:var(--bg3)}
+.flow-from,.flow-to{font-family:var(--mono);color:var(--text);font-size:11px;font-weight:500}
+.flow-arrow{color:var(--text3)}
+.flow-label{color:var(--blue);font-size:11px}
+.flow-tags{display:flex;gap:4px;margin-left:auto}
+.edit-hint{font-size:10px;color:var(--text3);margin-left:auto;opacity:0;transition:opacity .15s}
+.component-row:hover .edit-hint,.flow-row:hover .edit-hint,.risk-row:hover .edit-hint{opacity:1}
+
+/* diagram */
+.diagram-wrap{flex:1;display:flex;align-items:center;justify-content:center;overflow:auto;padding:24px;min-height:0;background:var(--bg)}
+.diagram-inner{background:#fff;border-radius:8px;padding:24px;min-width:400px}
+.diagram-toolbar{padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.btn-sm{padding:4px 10px;border-radius:4px;cursor:pointer;background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-size:11px;font-family:var(--sans);transition:all .1s}
+.btn-sm:hover{background:var(--bg4);color:var(--text);border-color:var(--border2)}
+.btn-sm.active{background:var(--blue-dim);color:var(--blue);border-color:var(--blue)}
+
+/* node tooltip for diagram */
+.node-tooltip{position:fixed;background:var(--bg2);border:1px solid var(--border2);border-radius:7px;padding:10px 14px;font-size:12px;color:var(--text);pointer-events:none;z-index:1000;box-shadow:0 8px 24px rgba(0,0,0,.5);min-width:180px;display:none}
+.node-tooltip.visible{display:block}
+
+/* edit drawer */
+.drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:flex;justify-content:flex-end}
+.drawer{width:var(--drawer);height:100%;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;animation:slideIn .18s ease-out}
+@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
+.drawer-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.drawer-kind{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);background:var(--bg4);border:1px solid var(--border);padding:2px 7px;border-radius:4px}
+.drawer-title{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drawer-close{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:2px 6px;border-radius:4px;transition:all .1s}
+.drawer-close:hover{background:var(--bg3);color:var(--text)}
+.drawer-body{flex:1;overflow-y:auto;padding:16px}
+.drawer-footer{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px}
+.field-group{margin-bottom:14px}
+.field-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:5px}
+.field-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:var(--mono);font-size:12px;padding:6px 9px;outline:none;transition:border-color .1s}
+.field-input:focus{border-color:var(--blue)}
+.field-select{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:var(--mono);font-size:12px;padding:6px 9px;outline:none;cursor:pointer;transition:border-color .1s;appearance:none}
+.field-select:focus{border-color:var(--blue)}
+.field-textarea{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:var(--mono);font-size:12px;padding:6px 9px;outline:none;resize:vertical;min-height:60px;transition:border-color .1s;line-height:1.5}
+.field-textarea:focus{border-color:var(--blue)}
+.drawer-save-btn{flex:1;padding:7px;border-radius:5px;cursor:pointer;background:var(--green);color:#000;border:none;font-size:12px;font-weight:700;font-family:var(--sans);transition:opacity .1s}
+.drawer-save-btn:hover{opacity:.85}
+.drawer-delete-btn{padding:7px 12px;border-radius:5px;cursor:pointer;background:transparent;color:var(--red);border:1px solid var(--red-dim);font-size:12px;font-family:var(--sans);transition:all .1s}
+.drawer-delete-btn:hover{background:var(--red-dim)}
+
+/* templates */
+.templates-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.template-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px;cursor:pointer;transition:all .15s}
+.template-card:hover{border-color:var(--green);background:var(--bg3)}
+.template-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;font-family:var(--mono)}
+.template-desc{font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:10px}
+.template-meta{display:flex;gap:6px;flex-wrap:wrap}
+.template-use-btn{margin-top:12px;width:100%;padding:7px;border-radius:5px;cursor:pointer;background:var(--green-dim);border:1px solid var(--green);color:var(--green);font-size:12px;font-weight:600;font-family:var(--sans);transition:all .12s}
+.template-use-btn:hover{background:var(--green);color:#000}
+
+/* diff */
+.diff-upload-row{display:flex;gap:12px;margin-bottom:20px;align-items:flex-start}
+.diff-upload-card{flex:1;background:var(--bg2);border:1px dashed var(--border2);border-radius:7px;padding:14px}
+.diff-upload-label{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:6px}
+.diff-upload-name{font-family:var(--mono);font-size:11.5px;color:var(--text)}
+.diff-upload-btn{margin-top:8px;padding:5px 10px;border-radius:4px;cursor:pointer;background:transparent;border:1px solid var(--border);color:var(--text2);font-size:11px;font-family:var(--sans);transition:all .1s}
+.diff-upload-btn:hover{background:var(--bg3);color:var(--text)}
+.diff-section{margin-bottom:20px}
+.diff-row{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:5px;margin-bottom:4px;font-size:12px}
+.diff-row.added{background:var(--green-dim);border-left:3px solid var(--green)}
+.diff-row.removed{background:var(--red-dim);border-left:3px solid var(--red)}
+.diff-row.modified{background:var(--amber-dim);border-left:3px solid var(--amber)}
+.diff-op{flex-shrink:0;font-weight:700;font-family:var(--mono);font-size:11px}
+.diff-op.added{color:var(--green)}.diff-op.removed{color:var(--red)}.diff-op.modified{color:var(--amber)}
+.diff-change{font-size:11px;color:var(--text2);margin-top:2px}
+.diff-from{color:var(--red);text-decoration:line-through}
+.diff-to{color:var(--green)}
+
+/* ref */
+.ref-table{width:100%;border-collapse:collapse;font-size:12px}
+.ref-table th{text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);padding:0 10px 6px;border-bottom:1px solid var(--border)}
+.ref-table td{padding:6px 10px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:top}
+.ref-table tr:last-child td{border-bottom:none}
+.ref-tags{display:flex;gap:4px;flex-wrap:wrap}
+
+/* misc */
+.mermaid svg{max-width:100%;height:auto}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;color:var(--text3)}
+.empty-state-icon{font-size:32px;opacity:.4}
+.empty-state-text{font-size:13px}
+
+/* diagram node clickable */
+.diagram-inner .node rect,.diagram-inner .node circle,.diagram-inner .node polygon,.diagram-inner .node path{cursor:pointer;transition:opacity .15s}
+.diagram-inner .node:hover rect,.diagram-inner .node:hover circle,.diagram-inner .node:hover polygon{opacity:.8}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div class="node-tooltip" id="node-tooltip"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
+const Z = window.ZephyrCore;
+
+// ── EXAMPLE ───────────────────────────────────────────────────────────────────
+const EXAMPLE_YAML = `name: macos-intune-windows-domain
+description: >
+  Enterprise macOS architecture with Intune-enrolled devices, Entra ID
+  cloud identity, Conditional Access, and hybrid on-prem integration.
+meta:
+  version: v1
+  owner: platform-team
+  environment: [prod]
+  criticality: mission-critical
+components:
+  - name: macbook
+    type: endpoint
+    domain: technology
+    criticality: high
+    exposure: internal
+    lifecycle: active
+  - name: intune
+    type: device-management
+    domain: application
+    criticality: high
+    exposure: external
+    lifecycle: active
+  - name: entra-id
+    type: cloud-identity
+    domain: application
+    criticality: mission-critical
+    exposure: external
+    lifecycle: active
+  - name: conditional-access
+    type: access-policy
+    domain: application
+    criticality: high
+    exposure: external
+    lifecycle: active
+  - name: windows-domain
+    type: on-prem-identity
+    domain: data
+    criticality: mission-critical
+    exposure: internal
+    lifecycle: active
+  - name: file-server
+    type: on-prem-resource
+    domain: data
+    criticality: medium
+    exposure: internal
+    lifecycle: active
+  - name: vpn
+    type: remote-access
+    domain: technology
+    criticality: high
+    exposure: external
+    lifecycle: active
+  - name: certificate-service
+    type: pki
+    domain: technology
+    criticality: high
+    exposure: internal
+    lifecycle: active
+flows:
+  - from: macbook
+    to: intune
+    label: enrollment
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+  - from: macbook
+    to: entra-id
+    label: sign-in
+    protocol: https
+    authentication: mfa
+    encryption: tls
+    direction: outbound
+  - from: entra-id
+    to: conditional-access
+    label: evaluate policy
+    protocol: https
+    encryption: tls
+    direction: outbound
+  - from: macbook
+    to: vpn
+    label: connect for internal access
+    protocol: ipsec
+    authentication: certificate
+    encryption: ipsec
+    direction: outbound
+  - from: macbook
+    to: file-server
+    label: access internal resources
+    protocol: smb
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+  - from: macbook
+    to: certificate-service
+    label: obtain device or user cert
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+risks:
+  - id: R1
+    title: Unclear trust boundary between Entra-managed identity and on-prem domain access
+    severity: high
+    likelihood: high
+    impact: high
+    mitigation: Implement Entra ID Kerberos to bridge cloud and on-prem identity.
+  - id: R2
+    title: Certificate dependency not documented for secure access
+    severity: medium
+    likelihood: medium
+    impact: high
+    mitigation: Configure SCEP-based auto-renewal via Intune.
+  - id: R3
+    title: Compliance state may not align with resource access expectations
+    severity: medium
+    likelihood: medium
+    impact: medium
+    mitigation: Enforce Conditional Access policies that block access until compliance is confirmed.
+controls:
+  - name: enforce-device-compliance
+    type: technical
+    applies_to: [intune, conditional-access]
+    description: Intune compliance policies require macOS devices to meet security baselines.
+  - name: certificate-renewal-process
+    type: process
+    applies_to: [certificate-service, macbook]
+    description: Quarterly review of certificate expiry windows.
+stakeholders:
+  - name: platform-team
+    role: owner
+  - name: it-security
+    role: security
+  - name: end-users
+    role: user
+`;
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+const TYPE_COLORS = {
+  actor:"#28a745",endpoint:"#6c757d","cloud-identity":"#6f42c1","on-prem-identity":"#6f42c1",
+  "identity-provider":"#6f42c1",identity:"#6f42c1","access-gateway":"#fd7e14","remote-access":"#fd7e14",
+  "access-policy":"#0d6efd","security-control":"#0d6efd","device-management":"#0dcaf0",
+  pki:"#0dcaf0",application:"#dc3545","on-prem-resource":"#dc3545",
+};
+function typeColor(t){ return TYPE_COLORS[t]||"#8b949e"; }
+function SevBadge({sev}){ return <span className={`severity-badge sev-${sev||"low"}`}>{sev||"—"}</span>; }
+
+function SelectField({label,value,onChange,options,placeholder}){
+  return (
+    <div className="field-group">
+      <div className="field-label">{label}</div>
+      <select className="field-select" value={value||""} onChange={e=>onChange(e.target.value)}>
+        {placeholder && <option value="">{placeholder}</option>}
+        {options.map(o=><option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
+}
+function TextField({label,value,onChange,mono=true}){
+  return (
+    <div className="field-group">
+      <div className="field-label">{label}</div>
+      <input className="field-input" style={mono?{}:{fontFamily:"var(--sans)"}} value={value||""} onChange={e=>onChange(e.target.value)} />
+    </div>
+  );
+}
+function TextareaField({label,value,onChange}){
+  return (
+    <div className="field-group">
+      <div className="field-label">{label}</div>
+      <textarea className="field-textarea" value={value||""} onChange={e=>onChange(e.target.value)} />
+    </div>
+  );
+}
+
+// ── Edit Drawer ───────────────────────────────────────────────────────────────
+function EditDrawer({item, kind, onSave, onDelete, onClose, componentNames}){
+  const [draft, setDraft] = useState(()=>({...item}));
+  function set(k,v){ setDraft(d=>({...d,[k]:v})); }
+
+  const appliesToStr = useMemo(()=>(draft.applies_to||[]).join(", "),[draft.applies_to]);
+  function setAppliesTo(str){ set("applies_to", str.split(",").map(s=>s.trim()).filter(Boolean)); }
+
+  return (
+    <div className="drawer-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="drawer">
+        <div className="drawer-header">
+          <span className="drawer-kind">{kind}</span>
+          <span className="drawer-title">{draft.name||draft.id||`${draft.from}→${draft.to}`||"untitled"}</span>
+          <button className="drawer-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="drawer-body">
+          {kind === "component" && <>
+            <TextField label="Name" value={draft.name} onChange={v=>set("name",v)} />
+            <SelectField label="Type" value={draft.type} onChange={v=>set("type",v)} options={Z.COMPONENT_TYPES} placeholder="— select —" />
+            <SelectField label="Criticality" value={draft.criticality} onChange={v=>set("criticality",v)} options={Z.CRITICALITIES} placeholder="— optional —" />
+            <SelectField label="Exposure" value={draft.exposure} onChange={v=>set("exposure",v)} options={Z.EXPOSURES} placeholder="— optional —" />
+            <SelectField label="Lifecycle" value={draft.lifecycle} onChange={v=>set("lifecycle",v)} options={Z.LIFECYCLES} placeholder="— optional —" />
+            <SelectField label="Domain" value={draft.domain} onChange={v=>set("domain",v)} options={Z.DOMAINS} placeholder="— optional —" />
+            <TextareaField label="Description" value={draft.description} onChange={v=>set("description",v)} />
+          </>}
+          {kind === "flow" && <>
+            <SelectField label="From" value={draft.from} onChange={v=>set("from",v)} options={componentNames} placeholder="— select —" />
+            <SelectField label="To" value={draft.to} onChange={v=>set("to",v)} options={componentNames} placeholder="— select —" />
+            <TextField label="Label" value={draft.label} onChange={v=>set("label",v)} />
+            <TextField label="Protocol" value={draft.protocol} onChange={v=>set("protocol",v)} />
+            <SelectField label="Authentication" value={draft.authentication} onChange={v=>set("authentication",v)} options={Z.AUTH_TYPES} placeholder="— optional —" />
+            <SelectField label="Encryption" value={draft.encryption} onChange={v=>set("encryption",v)} options={Z.ENCRYPTION_TYPES} placeholder="— optional —" />
+            <SelectField label="Direction" value={draft.direction} onChange={v=>set("direction",v)} options={Z.FLOW_DIRECTIONS} placeholder="— optional —" />
+          </>}
+          {kind === "risk" && <>
+            <TextField label="ID" value={draft.id} onChange={v=>set("id",v)} />
+            <TextField label="Title" value={draft.title} onChange={v=>set("title",v)} mono={false} />
+            <SelectField label="Severity" value={draft.severity} onChange={v=>set("severity",v)} options={Z.SEVERITIES} placeholder="— select —" />
+            <SelectField label="Likelihood" value={draft.likelihood} onChange={v=>set("likelihood",v)} options={["low","medium","high"]} placeholder="— optional —" />
+            <SelectField label="Impact" value={draft.impact} onChange={v=>set("impact",v)} options={["low","medium","high"]} placeholder="— optional —" />
+            <TextareaField label="Description" value={draft.description} onChange={v=>set("description",v)} />
+            <TextareaField label="Mitigation" value={draft.mitigation} onChange={v=>set("mitigation",v)} />
+          </>}
+          {kind === "control" && <>
+            <TextField label="Name" value={draft.name} onChange={v=>set("name",v)} />
+            <SelectField label="Type" value={draft.type} onChange={v=>set("type",v)} options={["policy","technical","process"]} placeholder="— select —" />
+            <TextField label="Applies to (comma-separated)" value={appliesToStr} onChange={setAppliesTo} />
+            <TextareaField label="Description" value={draft.description} onChange={v=>set("description",v)} />
+          </>}
+        </div>
+        <div className="drawer-footer">
+          <button className="drawer-save-btn" onClick={()=>onSave(draft)}>Save changes</button>
+          <button className="drawer-delete-btn" onClick={onDelete}>Delete</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+function Sidebar({tab,setTab,files,activeFile,setActiveFile,onNewFile,onLoadFile,validationState}){
+  const tabs=[
+    {id:"editor",icon:"⌨",label:"Editor"},
+    {id:"summary",icon:"◈",label:"Summary"},
+    {id:"diagram",icon:"◉",label:"Diagram"},
+    {id:"validate",icon:"✓",label:"Validate"},
+    {id:"diff",icon:"⊕",label:"Diff"},
+    {id:"templates",icon:"▤",label:"Templates"},
+    {id:"reference",icon:"§",label:"Reference"},
+  ];
+  function statusBadge(){
+    if(!validationState)return null;
+    if(validationState.errors?.length)return <span className="nav-badge">{validationState.errors.length}</span>;
+    if(validationState.warnings?.length)return <span className="nav-badge warn">{validationState.warnings.length}</span>;
+    return <span className="nav-badge ok">✓</span>;
+  }
+  return (
+    <div className="sidebar">
+      <div className="sidebar-logo">
+        <div className="sidebar-logo-mark">Z</div>
+        <div><div className="sidebar-logo-text">Zephyr</div><div className="sidebar-logo-sub">Workbench</div></div>
+      </div>
+      <div className="sidebar-section">
+        <div className="sidebar-section-label">Views</div>
+        {tabs.map(t=>(
+          <button key={t.id} className={`nav-item${tab===t.id?" active":""}`} onClick={()=>setTab(t.id)}>
+            <span className="nav-icon">{t.icon}</span>{t.label}
+            {t.id==="validate"&&statusBadge()}
+          </button>
+        ))}
+      </div>
+      <div className="sidebar-section"><div className="sidebar-section-label">Files</div></div>
+      <div className="sidebar-files">
+        {files.map(f=>{
+          const vs=f.validationState;
+          const cls=vs?.errors?.length?"has-errors":vs?.warnings?.length?"has-warnings":vs?"valid":"";
+          return (
+            <div key={f.id} className={`file-item ${cls}${activeFile===f.id?" active":""}`} onClick={()=>setActiveFile(f.id)}>
+              <span className="fi-dot"></span>
+              <span style={{fontFamily:"var(--mono)",fontSize:11,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="sidebar-actions">
+        <button className="btn-sidebar" onClick={onLoadFile}><span>⬆</span> Load YAML</button>
+        <button className="btn-sidebar" onClick={onNewFile}><span>+</span> New file</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Topbar ────────────────────────────────────────────────────────────────────
+function Topbar({filename,tab,setTab,validationState}){
+  const tabs=["editor","validate","summary","diagram","diff","templates","reference"];
+  const labels={editor:"Editor",validate:"Validate",summary:"Summary",diagram:"Diagram",diff:"Diff",templates:"Templates",reference:"Reference"};
+  let pill=<span className="status-pill idle"><span className="status-dot"></span>No file</span>;
+  if(validationState){
+    if(validationState.errors?.length) pill=<span className="status-pill error"><span className="status-dot"></span>{validationState.errors.length} error{validationState.errors.length!==1?"s":""}</span>;
+    else if(validationState.warnings?.length) pill=<span className="status-pill warn"><span className="status-dot"></span>{validationState.warnings.length} warning{validationState.warnings.length!==1?"s":""}</span>;
+    else pill=<span className="status-pill ok"><span className="status-dot"></span>Valid</span>;
+  }
+  return (
+    <div className="topbar">
+      <div className="topbar-filename"><span>{filename||"untitled.yaml"}</span></div>
+      <div className="topbar-tabs">
+        {tabs.map(t=>(
+          <button key={t} className={`tab-btn${tab===t?" active":""}`} onClick={()=>setTab(t)}>{labels[t]}</button>
+        ))}
+      </div>
+      <div className="topbar-status">{pill}</div>
+    </div>
+  );
+}
+
+// ── Editor panel ──────────────────────────────────────────────────────────────
+function EditorPanel({yaml,setYaml,onRun,onExport,validationState}){
+  const lines=yaml.split("\n").length;
+  return (
+    <div className="panel editor-wrap">
+      <textarea className="editor-textarea" value={yaml} onChange={e=>setYaml(e.target.value)} spellCheck={false} autoComplete="off" placeholder="# Paste or type your architecture YAML here..." />
+      <div className="editor-footer">
+        <span>{lines} lines</span>
+        <span>{yaml.length} chars</span>
+        {validationState&&(
+          <span style={{color:validationState.errors?.length?"var(--red)":validationState.warnings?.length?"var(--amber)":"var(--green)"}}>
+            {validationState.errors?.length?`${validationState.errors.length} error(s)`:validationState.warnings?.length?`${validationState.warnings.length} warning(s)`:"Valid"}
+          </span>
+        )}
+        <button className="editor-footer-btn secondary" onClick={onExport}>⬇ Export YAML</button>
+        <button className="editor-footer-btn" onClick={onRun}>▶ Run</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Validate panel ────────────────────────────────────────────────────────────
+function ValidatePanel({validationState}){
+  if(!validationState)return(
+    <div className="panel-body"><div className="empty-state"><div className="empty-state-icon">✓</div><div className="empty-state-text">Click Run to validate</div></div></div>
+  );
+  const{errors,warnings}=validationState;
+  return (
+    <div className="panel-body">
+      {errors.length===0&&warnings.length===0&&<div className="val-item ok"><span className="val-icon">✓</span>Validation passed — no errors or warnings</div>}
+      {errors.map((e,i)=><div key={i} className="val-item error"><span className="val-icon">✕</span>{e}</div>)}
+      {warnings.map((w,i)=><div key={i} className="val-item warning"><span className="val-icon">⚠</span>{w}</div>)}
+    </div>
+  );
+}
+
+// ── Summary panel ─────────────────────────────────────────────────────────────
+function SummaryPanel({data,onEdit}){
+  if(!data)return(
+    <div className="panel-body"><div className="empty-state"><div className="empty-state-icon">◈</div><div className="empty-state-text">Run a valid model to see its summary</div></div></div>
+  );
+  const s=Z.summarize(data);
+  return (
+    <div className="panel-body">
+      <div style={{marginBottom:6,display:"flex",alignItems:"baseline",gap:8}}>
+        <span style={{fontFamily:"var(--mono)",fontSize:16,fontWeight:700,color:"var(--text)"}}>{s.name}</span>
+        {data.meta?.version&&<span className="tag">{data.meta.version}</span>}
+        {data.meta?.criticality&&<span className="tag">{data.meta.criticality}</span>}
+        {data.meta?.owner&&<span style={{fontSize:11,color:"var(--text3)"}}>{data.meta.owner}</span>}
+      </div>
+      {s.description&&<p style={{fontSize:12,color:"var(--text2)",lineHeight:1.6,marginBottom:16}}>{s.description}</p>}
+      <div className="summary-grid">
+        {[["components",s.components,"var(--blue)"],["flows",s.flows,"var(--purple)"],["risks",s.risks,s.risks>0?"var(--red)":"var(--text)"],["controls",s.controls,"var(--green)"],["stakeholders",s.stakeholders,"var(--amber)"]].map(([label,num,col])=>(
+          <div className="stat-card" key={label}><div className="stat-num" style={{color:col}}>{num}</div><div className="stat-label">{label}</div></div>
+        ))}
+      </div>
+
+      {s.componentDetails.length>0&&<>
+        <div className="section-header">Components</div>
+        {s.componentDetails.map((c,i)=>(
+          <div className="component-row" key={i} onClick={()=>onEdit("component",i,c)}>
+            <span className="comp-dot" style={{background:typeColor(c.type)}}></span>
+            <span className="comp-name">{c.name}</span>
+            <span className="comp-type">{c.type}</span>
+            {c.criticality&&<span className="tag">{c.criticality}</span>}
+            {c.exposure&&<span className="tag">{c.exposure}</span>}
+            <span className="edit-hint">edit →</span>
+          </div>
+        ))}
+      </>}
+
+      {s.flowDetails.length>0&&<>
+        <div className="section-header">Flows</div>
+        {s.flowDetails.map((f,i)=>(
+          <div className="flow-row" key={i} onClick={()=>onEdit("flow",i,f)}>
+            <span className="flow-from">{f.from}</span>
+            <span className="flow-arrow">→</span>
+            <span className="flow-to">{f.to}</span>
+            {f.label&&<span className="flow-label">{f.label}</span>}
+            <div className="flow-tags">
+              {f.protocol&&<span className="tag">{f.protocol}</span>}
+              {f.authentication&&<span className="tag">{f.authentication}</span>}
+              {f.encryption&&<span className="tag">{f.encryption}</span>}
+            </div>
+            <span className="edit-hint">edit →</span>
+          </div>
+        ))}
+      </>}
+
+      {s.riskDetails.length>0&&<>
+        <div className="section-header">Risks</div>
+        {s.riskDetails.map((r,i)=>(
+          <div className="risk-row" key={i} onClick={()=>onEdit("risk",i,r)}>
+            <span className="risk-id">{r.id}</span>
+            <div className="risk-body">
+              <div className="risk-title">{r.title}</div>
+              <div className="risk-meta">
+                <SevBadge sev={r.severity}/>
+                {r.likelihood&&<span className="tag">likelihood: {r.likelihood}</span>}
+                {r.impact&&<span className="tag">impact: {r.impact}</span>}
+              </div>
+              {r.mitigation&&<div className="risk-mitigation">{r.mitigation}</div>}
+            </div>
+            <span className="edit-hint">edit →</span>
+          </div>
+        ))}
+      </>}
+
+      {s.controlDetails.length>0&&<>
+        <div className="section-header">Controls</div>
+        {s.controlDetails.map((c,i)=>(
+          <div className="risk-row" key={i} onClick={()=>onEdit("control",i,c)}>
+            <span className="risk-id" style={{color:"var(--green)",fontSize:9,paddingTop:4}}>{c.type}</span>
+            <div className="risk-body">
+              <div className="risk-title" style={{fontFamily:"var(--mono)",fontSize:12}}>{c.name}</div>
+              {c.applies_to?.length>0&&<div className="risk-meta">{c.applies_to.map(t=><span key={t} className="tag">{t}</span>)}</div>}
+              {c.description&&<div className="risk-mitigation">{c.description}</div>}
+            </div>
+            <span className="edit-hint">edit →</span>
+          </div>
+        ))}
+      </>}
+
+      {s.stakeholderDetails.length>0&&<>
+        <div className="section-header">Stakeholders</div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          {s.stakeholderDetails.map((s,i)=>(
+            <div key={i} style={{background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:6,padding:"8px 12px",fontSize:12}}>
+              <span style={{color:"var(--text)",fontWeight:500}}>{s.name}</span>
+              <span style={{color:"var(--text3)",marginLeft:6}}>{s.role}</span>
+            </div>
+          ))}
+        </div>
+      </>}
+    </div>
+  );
+}
+
+// ── Diagram panel ─────────────────────────────────────────────────────────────
+function DiagramPanel({data,onEditComponent}){
+  const containerRef=useRef(null);
+  const [showMermaid,setShowMermaid]=useState(false);
+  const mmdSrc=useMemo(()=>data?Z.toMermaid(data):null,[data]);
+
+  useEffect(()=>{
+    if(!data||!containerRef.current||showMermaid)return;
+    const el=containerRef.current;
+    el.innerHTML="";
+    const div=document.createElement("div");
+    div.className="mermaid";
+    div.textContent=mmdSrc;
+    el.appendChild(div);
+    mermaid.initialize({startOnLoad:false,theme:"default",securityLevel:"loose"});
+    mermaid.run({nodes:[div]}).then(()=>{
+      // attach click handlers to nodes
+      if(!data?.components)return;
+      const compMap={};
+      (data.components||[]).forEach(c=>{
+        const id=c.name.replace(/[-\s]/g,"_");
+        compMap[id]=c;
+      });
+      el.querySelectorAll(".node").forEach(node=>{
+        const nodeId=node.id?.replace(/^flowchart-/,"").replace(/-\d+$/,"");
+        const comp=compMap[nodeId];
+        if(!comp)return;
+        node.style.cursor="pointer";
+        node.addEventListener("click",()=>onEditComponent&&onEditComponent(comp));
+        // tooltip
+        node.addEventListener("mouseenter",e=>{
+          const tt=document.getElementById("node-tooltip");
+          tt.innerHTML=`<strong style="color:var(--text)">${comp.name}</strong><br/><span style="color:var(--text3);font-size:11px">${comp.type}</span>${comp.criticality?`<br/><span class="tag" style="margin-top:4px;display:inline-block">${comp.criticality}</span>`:""}`;
+          tt.className="node-tooltip visible";
+          tt.style.left=(e.clientX+12)+"px";
+          tt.style.top=(e.clientY-10)+"px";
+        });
+        node.addEventListener("mousemove",e=>{
+          const tt=document.getElementById("node-tooltip");
+          tt.style.left=(e.clientX+12)+"px";
+          tt.style.top=(e.clientY-10)+"px";
+        });
+        node.addEventListener("mouseleave",()=>{
+          document.getElementById("node-tooltip").className="node-tooltip";
+        });
+      });
+    }).catch(()=>{});
+  },[data,mmdSrc,showMermaid,onEditComponent]);
+
+  if(!data)return(
+    <div className="panel" style={{display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <div className="empty-state"><div className="empty-state-icon">◉</div><div className="empty-state-text">Run a valid model to generate a diagram</div></div>
+    </div>
+  );
+
+  return (
+    <div className="panel">
+      <div className="diagram-toolbar">
+        <button className={`btn-sm${!showMermaid?" active":""}`} onClick={()=>setShowMermaid(false)}>Visual</button>
+        <button className={`btn-sm${showMermaid?" active":""}`} onClick={()=>setShowMermaid(true)}>Mermaid source</button>
+        {!showMermaid&&<span style={{fontSize:11,color:"var(--text3)",marginLeft:8}}>Click any node to edit</span>}
+      </div>
+      {showMermaid?(
+        <div style={{flex:1,overflow:"auto",padding:"16px 20px"}}>
+          <pre style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--text)",lineHeight:1.6,whiteSpace:"pre-wrap"}}>{mmdSrc}</pre>
+        </div>
+      ):(
+        <div className="diagram-wrap">
+          <div className="diagram-inner" ref={containerRef}></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Diff panel ────────────────────────────────────────────────────────────────
+function DiffPanel({currentData}){
+  const [fileB,setFileB]=useState(null);
+  const [fileNameB,setFileNameB]=useState(null);
+  const [diffResult,setDiffResult]=useState(null);
+  const [diffError,setDiffError]=useState(null);
+  const fileRef=useRef(null);
+
+  function handleLoadB(e){
+    const f=e.target.files[0];if(!f)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      try{
+        const parsed=jsyaml.load(ev.target.result);
+        setFileB(parsed);setFileNameB(f.name);setDiffError(null);setDiffResult(null);
+      }catch(err){setDiffError("Could not parse: "+err.message);}
+    };
+    reader.readAsText(f);
+  }
+
+  function runDiff(){
+    if(!currentData||!fileB)return;
+    try{setDiffResult(Z.diffArchitectures(currentData,fileB));}
+    catch(e){setDiffError(e.message);}
+  }
+
+  const total=diffResult?(diffResult.components.length+diffResult.flows.length+diffResult.risks.length):0;
+  return (
+    <div className="panel-body">
+      <div className="diff-upload-row">
+        <div className="diff-upload-card">
+          <div className="diff-upload-label">Model A (current)</div>
+          <div className="diff-upload-name">{currentData?.name||"—"}</div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",color:"var(--text3)",fontSize:16,paddingTop:24}}>→</div>
+        <div className="diff-upload-card">
+          <div className="diff-upload-label">Model B</div>
+          <div className="diff-upload-name">{fileNameB||"Not loaded"}</div>
+          <input ref={fileRef} type="file" accept=".yaml,.yml" style={{display:"none"}} onChange={handleLoadB}/>
+          <button className="diff-upload-btn" onClick={()=>fileRef.current.click()}>Load YAML…</button>
+        </div>
+      </div>
+      {diffError&&<div className="val-item error" style={{marginBottom:12}}><span>✕</span>{diffError}</div>}
+      <button className="editor-footer-btn" style={{marginBottom:20,padding:"6px 14px",fontSize:12}} disabled={!currentData||!fileB} onClick={runDiff}>Run diff</button>
+      {diffResult&&(
+        <div>
+          <div style={{marginBottom:16,fontSize:12,color:"var(--text2)"}}>
+            {total===0?<span style={{color:"var(--green)"}}>✓ Models are identical</span>:<span>{total} change{total!==1?"s":""} detected</span>}
+          </div>
+          {["components","flows","risks"].map(section=>{
+            const rows=diffResult[section];
+            if(!rows?.length)return null;
+            return (
+              <div className="diff-section" key={section}>
+                <div className="section-header">{section}</div>
+                {rows.map((row,i)=>(
+                  <div key={i} className={`diff-row ${row.op}`}>
+                    <span className={`diff-op ${row.op}`}>{row.op==="added"?"+":row.op==="removed"?"−":"~"}</span>
+                    <div>
+                      <div style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--text)"}}>
+                        {row.item?.name||row.item?.id||row.name||row.id||"—"}
+                        {row.item?.type&&<span style={{color:"var(--text3)",marginLeft:6}}>{row.item.type}</span>}
+                      </div>
+                      {row.changes?.map((ch,j)=>(
+                        <div key={j} className="diff-change">
+                          <span style={{color:"var(--text3)"}}>{ch.field}: </span>
+                          <span className="diff-from">{ch.from||"—"}</span>
+                          <span style={{color:"var(--text3)"}}> → </span>
+                          <span className="diff-to">{ch.to||"—"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Templates panel ───────────────────────────────────────────────────────────
+function TemplatesPanel({onUseTemplate}){
+  const templates=Z.templateNames();
+  const meta={minimal:{components:2,flows:1,risks:1},"hybrid-identity":{components:8,flows:6,risks:3},"zero-trust":{components:8,flows:7,risks:3}};
+  return (
+    <div className="panel-body">
+      <div style={{marginBottom:20,fontSize:12,color:"var(--text2)",lineHeight:1.6}}>Start from a validated starter model. All templates include components, flows, risks, and controls.</div>
+      <div className="templates-grid">
+        {templates.map(t=>{
+          const m=meta[t.name]||{};
+          return (
+            <div className="template-card" key={t.name}>
+              <div className="template-name">{t.name}</div>
+              <div className="template-desc">{t.description}</div>
+              <div className="template-meta">
+                {m.components&&<span className="tag">{m.components} components</span>}
+                {m.flows&&<span className="tag">{m.flows} flows</span>}
+                {m.risks&&<span className="tag">{m.risks} risks</span>}
+              </div>
+              <button className="template-use-btn" onClick={()=>onUseTemplate(t.name)}>Use template →</button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Reference panel ───────────────────────────────────────────────────────────
+function ReferencePanel(){
+  const sections=[
+    {label:"component.type",values:Z.COMPONENT_TYPES},
+    {label:"component.criticality",values:Z.CRITICALITIES},
+    {label:"component.exposure",values:Z.EXPOSURES},
+    {label:"component.lifecycle",values:Z.LIFECYCLES},
+    {label:"flow.authentication",values:Z.AUTH_TYPES},
+    {label:"flow.encryption",values:Z.ENCRYPTION_TYPES},
+    {label:"flow.direction",values:Z.FLOW_DIRECTIONS},
+    {label:"risk.severity",values:Z.SEVERITIES},
+  ];
+  return (
+    <div className="panel-body">
+      <table className="ref-table">
+        <thead><tr><th>Field</th><th>Allowed values</th></tr></thead>
+        <tbody>
+          {sections.map(s=>(
+            <tr key={s.label}>
+              <td><span style={{fontFamily:"var(--mono)",color:"var(--blue)",fontSize:11}}>{s.label}</span></td>
+              <td><div className="ref-tags">{s.values.map(v=><span key={v} className="tag">{v}</span>)}</div></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ── file helpers ──────────────────────────────────────────────────────────────
+let fileCounter=2;
+function makeFile(name,yaml){
+  let parsed=null,validationState=null;
+  try{parsed=jsyaml.load(yaml);validationState=Z.validate(parsed);}
+  catch(e){validationState={errors:["YAML parse error: "+e.message],warnings:[]};}
+  return{id:fileCounter++,name,yaml,parsed,validationState};
+}
+function dataToYaml(data){
+  // Use jsyaml dump for reliable output
+  try{
+    return jsyaml.dump(data,{lineWidth:120,noRefs:true,indent:2});
+  }catch(e){return Z.objToYaml(data);}
+}
+
+// ── App ───────────────────────────────────────────────────────────────────────
+function App(){
+  const [tab,setTab]=useState("editor");
+  const initialFile=useMemo(()=>{
+    const name="macos-intune-windows-domain.yaml";
+    let parsed=null,vs=null;
+    try{parsed=jsyaml.load(EXAMPLE_YAML);vs=Z.validate(parsed);}
+    catch(e){vs={errors:["YAML parse error: "+e.message],warnings:[]};}
+    return [{id:1,name,yaml:EXAMPLE_YAML,parsed,validationState:vs}];
+  },[]);
+
+  const [files,setFiles]=useState(initialFile);
+  const [activeFileId,setActiveFileId]=useState(1);
+  const [drawer,setDrawer]=useState(null); // {kind, index, item}
+  const loadFileRef=useRef(null);
+
+  const activeFile=files.find(f=>f.id===activeFileId)||files[0];
+  const vs=activeFile?.validationState;
+  const parsed=activeFile?.parsed;
+  const safeData=!vs?.errors?.length&&parsed?parsed:null;
+  const componentNames=useMemo(()=>(safeData?.components||[]).map(c=>c.name),[safeData]);
+
+  function updateActiveYaml(yaml){
+    setFiles(prev=>prev.map(f=>{
+      if(f.id!==activeFileId)return f;
+      let parsed=null,validationState=null;
+      try{parsed=jsyaml.load(yaml);validationState=Z.validate(parsed);}
+      catch(e){validationState={errors:["YAML parse error: "+e.message],warnings:[]};}
+      return{...f,yaml,parsed,validationState};
+    }));
+  }
+
+  function updateActiveData(newData){
+    const yaml=dataToYaml(newData);
+    updateActiveYaml(yaml);
+  }
+
+  function handleRun(){updateActiveYaml(activeFile.yaml);}
+
+  function handleExport(){
+    const yaml=activeFile?.yaml||"";
+    const blob=new Blob([yaml],{type:"text/yaml"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;a.download=activeFile?.name||"architecture.yaml";
+    document.body.appendChild(a);a.click();
+    document.body.removeChild(a);URL.revokeObjectURL(url);
+  }
+
+  function handleEdit(kind,index,item){
+    setDrawer({kind,index,item});
+  }
+
+  function handleEditComponent(comp){
+    if(!safeData)return;
+    const idx=(safeData.components||[]).findIndex(c=>c.name===comp.name);
+    if(idx>=0)setDrawer({kind:"component",index:idx,item:comp});
+  }
+
+  function handleDrawerSave(draft){
+    if(!safeData||!drawer)return;
+    const newData=JSON.parse(JSON.stringify(safeData));
+    const sectionMap={component:"components",flow:"flows",risk:"risks",control:"controls"};
+    const section=sectionMap[drawer.kind];
+    if(section&&newData[section]){
+      // flows use from/to, not name
+      if(drawer.kind==="flow"){
+        newData[section][drawer.index]={...draft};
+      } else {
+        newData[section][drawer.index]={...draft};
+      }
+    }
+    updateActiveData(newData);
+    setDrawer(null);
+  }
+
+  function handleDrawerDelete(){
+    if(!safeData||!drawer)return;
+    const newData=JSON.parse(JSON.stringify(safeData));
+    const sectionMap={component:"components",flow:"flows",risk:"risks",control:"controls"};
+    const section=sectionMap[drawer.kind];
+    if(section&&newData[section]) newData[section].splice(drawer.index,1);
+    updateActiveData(newData);
+    setDrawer(null);
+  }
+
+  function handleNewFile(){
+    const f=makeFile("new-architecture.yaml","name: new-architecture\ncomponents:\n  - name: user\n    type: actor\nflows: []\n");
+    setFiles(prev=>[...prev,f]);setActiveFileId(f.id);setTab("editor");
+  }
+
+  function handleLoadFile(){loadFileRef.current.click();}
+
+  function handleFileInput(e){
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const f=makeFile(file.name,ev.target.result);
+      setFiles(prev=>[...prev,f]);setActiveFileId(f.id);setTab("editor");
+    };
+    reader.readAsText(file);e.target.value="";
+  }
+
+  function handleUseTemplate(name){
+    const tplData=Z.getTemplate(name);
+    const yaml=dataToYaml(tplData);
+    const f=makeFile(`${name}.yaml`,yaml);
+    setFiles(prev=>[...prev,f]);setActiveFileId(f.id);setTab("editor");
+  }
+
+  return (
+    <div className="app">
+      <input ref={loadFileRef} type="file" accept=".yaml,.yml" style={{display:"none"}} onChange={handleFileInput}/>
+      <Sidebar tab={tab} setTab={setTab} files={files} activeFile={activeFileId}
+        setActiveFile={id=>{setActiveFileId(id);setTab("editor");}}
+        onNewFile={handleNewFile} onLoadFile={handleLoadFile} validationState={vs}/>
+      <div className="main">
+        <Topbar filename={activeFile?.name} tab={tab} setTab={setTab} validationState={vs}/>
+        <div className="content-area">
+          {tab==="editor"    && <EditorPanel yaml={activeFile?.yaml||""} setYaml={updateActiveYaml} onRun={handleRun} onExport={handleExport} validationState={vs}/>}
+          {tab==="validate"  && <ValidatePanel validationState={vs}/>}
+          {tab==="summary"   && <SummaryPanel data={safeData} onEdit={handleEdit}/>}
+          {tab==="diagram"   && <DiagramPanel data={safeData} onEditComponent={handleEditComponent}/>}
+          {tab==="diff"      && <DiffPanel currentData={safeData}/>}
+          {tab==="templates" && <TemplatesPanel onUseTemplate={handleUseTemplate}/>}
+          {tab==="reference" && <ReferencePanel/>}
+        </div>
+      </div>
+      {drawer&&(
+        <EditDrawer
+          item={drawer.item}
+          kind={drawer.kind}
+          onSave={handleDrawerSave}
+          onDelete={handleDrawerDelete}
+          onClose={()=>setDrawer(null)}
+          componentNames={componentNames}
+        />
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
