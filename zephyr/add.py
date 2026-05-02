@@ -2,16 +2,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import yaml
-
+from zephyr._prompts import _prompt_choice, write_yaml_file
 from zephyr.init_wizard import (
-    _prompt_choice,
     prompt_components,
     prompt_controls,
     prompt_flows,
     prompt_risks,
     prompt_stakeholders,
-    write_yaml_file,
 )
 from zephyr.validation import ValidationError, load_architecture_data, load_validated_architecture
 

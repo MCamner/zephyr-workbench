@@ -60,3 +60,33 @@ def test_search_on_real_example() -> None:
     arch = load_architecture("examples/macos-intune-windows-domain.yaml")
     result = search_architecture(arch, "type=endpoint")
     assert "macbook" in result
+
+
+def test_search_multi_filter_and() -> None:
+    arch = _arch(components=[
+        Component(name="vpn", type="remote-access", criticality="high"),
+        Component(name="idp", type="identity-provider", criticality="high"),
+        Component(name="client", type="endpoint", criticality="low"),
+    ])
+    result = search_architecture(arch, "criticality=high,type=remote-access")
+    assert "vpn" in result
+    assert "idp" not in result
+    assert "client" not in result
+
+
+def test_search_multi_filter_field_and_missing() -> None:
+    arch = _arch(risks=[
+        Risk(id="R1", title="No mitigation", severity="high", mitigation=""),
+        Risk(id="R2", title="Has mitigation", severity="high", mitigation="Fix it."),
+        Risk(id="R3", title="Low no mitigation", severity="low", mitigation=""),
+    ])
+    result = search_architecture(arch, "severity=high,missing=mitigation")
+    assert "R1" in result
+    assert "R2" not in result
+    assert "R3" not in result
+
+
+def test_search_multi_filter_no_results() -> None:
+    arch = _arch(components=[Component(name="vpn", type="remote-access", criticality="low")])
+    result = search_architecture(arch, "type=remote-access,criticality=high")
+    assert "No results" in result

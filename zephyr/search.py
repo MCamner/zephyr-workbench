@@ -1,47 +1,61 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import Literal
+
 from zephyr.models import Architecture
+
+
+@dataclass
+class _Filter:
+    kind: Literal["eq", "missing"]
+    field: str
+    value: str = ""
+
+
+def _parse_filters(query: str) -> list[_Filter]:
+    filters: list[_Filter] = []
+    for part in query.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if part.startswith("missing="):
+            filters.append(_Filter(kind="missing", field=part[len("missing="):].strip()))
+        elif "=" in part:
+            field, value = part.split("=", 1)
+            filters.append(_Filter(kind="eq", field=field.strip(), value=value.strip()))
+    return filters
+
+
+def _matches(item_dict: dict, filters: list[_Filter]) -> bool:
+    for f in filters:
+        if f.kind == "missing":
+            if item_dict.get(f.field):
+                return False
+        else:
+            val = str(item_dict.get(f.field, "")).lower()
+            if val != f.value.lower():
+                return False
+    return True
 
 
 def search_architecture(architecture: Architecture, query: str) -> str:
     """Filter components, flows, risks, controls, and stakeholders by field=value.
 
-    Supports:
-      - type=endpoint
-      - severity=high
-      - encryption=none
-      - authentication=mfa
-      - criticality=mission-critical
-      - missing=mitigation   (items where the field is empty)
-
-    If no filter is given, all items across all sections are listed.
+    Supports single and multi-filter queries (comma-separated, all must match):
+      type=endpoint
+      severity=high,missing=mitigation
+      type=endpoint,exposure=external
+      missing=mitigation
     """
-    query = query.strip()
-    missing_field: str | None = None
-    filter_field: str | None = None
-    filter_value: str | None = None
-
-    if query.startswith("missing="):
-        missing_field = query[len("missing="):]
-    elif "=" in query:
-        filter_field, filter_value = query.split("=", 1)
-
+    filters = _parse_filters(query.strip())
     lines: list[str] = []
 
-    def _matches(item_dict: dict) -> bool:
-        if missing_field:
-            return not item_dict.get(missing_field)
-        if filter_field:
-            val = str(item_dict.get(filter_field, "")).lower()
-            return val == filter_value.lower()
-        return True
-
-    # components
     comp_hits = [
         c for c in architecture.components
         if _matches({"name": c.name, "type": c.type, "domain": c.domain,
                      "criticality": c.criticality, "exposure": c.exposure,
-                     "lifecycle": c.lifecycle, "description": c.description})
+                     "lifecycle": c.lifecycle, "description": c.description}, filters)
     ]
     if comp_hits:
         lines.append("Components:")
@@ -53,12 +67,11 @@ def search_architecture(architecture: Architecture, query: str) -> str:
                 meta.append(c.exposure)
             lines.append(f"  {c.name}  [{', '.join(meta)}]")
 
-    # flows
     flow_hits = [
         f for f in architecture.flows
         if _matches({"from": f.source, "to": f.target, "label": f.label,
                      "protocol": f.protocol, "authentication": f.authentication,
-                     "encryption": f.encryption, "direction": f.direction})
+                     "encryption": f.encryption, "direction": f.direction}, filters)
     ]
     if flow_hits:
         if lines:
@@ -73,12 +86,11 @@ def search_architecture(architecture: Architecture, query: str) -> str:
             suffix = f"  [{', '.join(meta)}]" if meta else ""
             lines.append(f"  {f.source} → {f.target} ({f.label}){suffix}")
 
-    # risks
     risk_hits = [
         r for r in architecture.risks
         if _matches({"id": r.id, "title": r.title, "severity": r.severity,
                      "likelihood": r.likelihood, "impact": r.impact,
-                     "mitigation": r.mitigation, "description": r.description})
+                     "mitigation": r.mitigation, "description": r.description}, filters)
     ]
     if risk_hits:
         if lines:
@@ -89,10 +101,9 @@ def search_architecture(architecture: Architecture, query: str) -> str:
             if r.mitigation:
                 lines.append(f"    Mitigation: {r.mitigation}")
 
-    # controls
     ctrl_hits = [
         c for c in architecture.controls
-        if _matches({"name": c.name, "type": c.type, "description": c.description})
+        if _matches({"name": c.name, "type": c.type, "description": c.description}, filters)
     ]
     if ctrl_hits:
         if lines:
@@ -102,10 +113,9 @@ def search_architecture(architecture: Architecture, query: str) -> str:
             targets = ", ".join(c.applies_to)
             lines.append(f"  [{c.type}] {c.name} → {targets}")
 
-    # stakeholders
     sh_hits = [
         s for s in architecture.stakeholders
-        if _matches({"name": s.name, "role": s.role})
+        if _matches({"name": s.name, "role": s.role}, filters)
     ]
     if sh_hits:
         if lines:

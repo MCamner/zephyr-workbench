@@ -49,3 +49,23 @@ def test_to_html_contains_mermaid_graph() -> None:
 
     assert "graph TD" in html
     assert "classDef" in html
+
+
+def test_to_html_includes_meta_when_present() -> None:
+    architecture = load_architecture("examples/macos-intune-windows-domain.yaml")
+
+    html = to_html(architecture)
+
+    assert 'class="meta"' in html
+    assert "platform-team" in html
+    assert "v1" in html
+    assert "mission-critical" in html
+    assert "prod" in html
+
+
+def test_to_html_omits_meta_block_when_absent() -> None:
+    architecture = load_architecture("examples/secure-workplace.yaml")
+
+    html = to_html(architecture)
+
+    assert 'class="meta"' not in html

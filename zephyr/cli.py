@@ -68,6 +68,12 @@ Commands
   templates
     List available starter templates with descriptions.
 
+  search <file> <query>
+    Filter components, flows, risks, controls, and stakeholders by field value.
+    • type=endpoint           match a specific field value
+    • missing=mitigation      items where the field is empty
+    • severity=high,missing=mitigation   comma-separate to AND multiple filters
+
   reference
     Show all valid values for every enum field (type, criticality, auth...).
 
@@ -141,7 +147,7 @@ def _build_parser() -> argparse.ArgumentParser:
     search_parser.add_argument("file")
     search_parser.add_argument(
         "query",
-        help="Filter expression: type=endpoint, severity=high, encryption=none, missing=mitigation",
+        help="Filter expression: type=endpoint, severity=high,missing=mitigation (comma-separated for AND)",
     )
 
     subparsers.add_parser("reference", help="Show all valid field values")

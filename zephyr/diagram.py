@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from zephyr.models import Architecture
 
 _HTML_TEMPLATE = """\
@@ -17,6 +19,7 @@ _HTML_TEMPLATE = """\
       color: #1a1a1a;
     }}
     h1 {{ font-size: 1.4rem; margin-bottom: 0.2rem; }}
+    .meta {{ color: #888; font-size: 0.8rem; margin-bottom: 0.4rem; }}
     .description {{ color: #555; font-size: 0.9rem; margin-bottom: 2rem; }}
     .diagram {{
       background: #fff;
@@ -29,6 +32,7 @@ _HTML_TEMPLATE = """\
 </head>
 <body>
   <h1>{title}</h1>
+  {meta_block}
   {description_block}
   <div class="diagram">
     <div class="mermaid">
@@ -93,16 +97,32 @@ def _flow_label(label: str, authentication: str, encryption: str) -> str:
     return " | ".join(parts) if parts else ""
 
 
+def _build_meta_block(architecture: Architecture) -> str:
+    if not architecture.meta:
+        return ""
+    meta = architecture.meta
+    parts = []
+    if meta.owner:
+        parts.append(meta.owner)
+    if meta.version:
+        parts.append(meta.version)
+    if meta.criticality:
+        parts.append(meta.criticality)
+    if meta.environment:
+        parts.append(", ".join(meta.environment))
+    if not parts:
+        return ""
+    return '<p class="meta">' + " · ".join(parts) + "</p>"
+
+
 def to_mermaid(architecture: Architecture) -> str:
     lines = ["graph TD"]
     lines.append("")
 
-    # classDef blocks
     for class_name, style in _CLASS_DEFS.items():
         lines.append(f"    classDef {class_name} {style}")
     lines.append("")
 
-    # nodes
     class_assignments: list[tuple[str, str]] = []
     for component in architecture.components:
         node_id = _node_id(component.name)
@@ -118,7 +138,6 @@ def to_mermaid(architecture: Architecture) -> str:
 
     lines.append("")
 
-    # edges
     for flow in architecture.flows:
         source = _node_id(flow.source)
         target = _node_id(flow.target)
@@ -133,6 +152,7 @@ def to_mermaid(architecture: Architecture) -> str:
 
 def to_html(architecture: Architecture, livereload: bool = False) -> str:
     mermaid = to_mermaid(architecture)
+    meta_block = _build_meta_block(architecture)
     description_block = (
         f'<p class="description">{architecture.description}</p>'
         if architecture.description
@@ -140,6 +160,7 @@ def to_html(architecture: Architecture, livereload: bool = False) -> str:
     )
     return _HTML_TEMPLATE.format(
         title=architecture.name,
+        meta_block=meta_block,
         description_block=description_block,
         mermaid=mermaid,
         livereload_script=_LIVERELOAD_SCRIPT if livereload else "",

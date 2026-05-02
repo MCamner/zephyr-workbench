@@ -19,7 +19,7 @@ def test_summarize_architecture_data_returns_structured_counts() -> None:
     summary = summarize_architecture_data(architecture)
 
     assert summary["name"] == "secure-workplace"
-    assert summary["components"] == 6
+    assert summary["components"] == 7
     assert summary["flows"] == 5
     assert summary["risks"] == 2
     assert summary["risk_details"][0]["id"] == "R1"

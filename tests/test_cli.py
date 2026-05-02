@@ -55,7 +55,7 @@ def test_summary_command_supports_json_output() -> None:
     assert result.returncode == 0
     data = json.loads(result.stdout)
     assert data["name"] == "secure-workplace"
-    assert data["components"] == 6
+    assert data["components"] == 7
     assert data["risks"] == 2
 
 
