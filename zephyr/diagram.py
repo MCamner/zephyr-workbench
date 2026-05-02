@@ -78,13 +78,13 @@ _TYPE_TO_CLASS = {
 }
 
 _CLASS_DEFS = {
-    "actor":    "fill:#d4edda,stroke:#28a745,color:#000",
-    "endpoint": "fill:#e2e3e5,stroke:#6c757d,color:#000",
-    "identity": "fill:#e2d9f3,stroke:#6f42c1,color:#000",
-    "gateway":  "fill:#fff3cd,stroke:#fd7e14,color:#000",
-    "policy":   "fill:#cce5ff,stroke:#004085,color:#000",
-    "mgmt":     "fill:#d1ecf1,stroke:#0c5460,color:#000",
-    "app":      "fill:#f8d7da,stroke:#721c24,color:#000",
+    "actor":    "fill:#d4edda,stroke:#28a745,color:#111",
+    "endpoint": "fill:#e2e3e5,stroke:#6c757d,color:#111",
+    "identity": "fill:#e2d9f3,stroke:#6f42c1,color:#111",
+    "gateway":  "fill:#fff3cd,stroke:#fd7e14,color:#111",
+    "policy":   "fill:#cce5ff,stroke:#004085,color:#111",
+    "mgmt":     "fill:#d1ecf1,stroke:#0c5460,color:#111",
+    "app":      "fill:#f8d7da,stroke:#721c24,color:#111",
 }
 
 
