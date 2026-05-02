@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from zephyr.analyzer import load_architecture, summarize_architecture, summarize_architecture_data
 from zephyr.models import Architecture, Component, Control, Flow, Risk, Stakeholder
 

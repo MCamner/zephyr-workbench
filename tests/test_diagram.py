@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from zephyr.analyzer import load_architecture
 from zephyr.diagram import to_html, to_mermaid
 

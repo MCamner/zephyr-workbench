@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from zephyr.analyzer import load_architecture
-from zephyr.models import Architecture, Component, Flow, Risk, Control, Stakeholder
+from zephyr.models import Architecture, Component, Control, Flow, Risk, Stakeholder
 from zephyr.search import search_architecture
 
 

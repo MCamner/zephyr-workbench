@@ -1,6 +1,7 @@
 # zephyr-workbench
 
 [![Python](https://img.shields.io/badge/python-3.11-blue)](https://www.python.org/)
+[![CI](https://github.com/MCamner/zephyr-workbench/actions/workflows/ci.yml/badge.svg)](https://github.com/MCamner/zephyr-workbench/actions/workflows/ci.yml)
 [![Status](https://img.shields.io/badge/status-active-brightgreen)](https://github.com/MCamner/zephyr-workbench)
 
 **Model infrastructure. Understand flows. Generate architecture.**

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from zephyr.diff import ArchitectureDiff, Change, diff_architectures, format_diff
 from zephyr.models import Architecture, Component, Control, Flow, Risk, Stakeholder
 

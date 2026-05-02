@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from zephyr.reference import build_reference
 
 
