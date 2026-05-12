@@ -4,6 +4,8 @@
 [![CI](https://github.com/MCamner/zephyr-workbench/actions/workflows/ci.yml/badge.svg)](https://github.com/MCamner/zephyr-workbench/actions/workflows/ci.yml)
 [![Status](https://img.shields.io/badge/status-active-brightgreen)](https://github.com/MCamner/zephyr-workbench)
 
+👉 **GitHub Pages:** https://mcamner.github.io/zephyr-workbench/
+
 **Model infrastructure. Understand flows. Generate architecture.**
 
 CLI-based architecture workbench for modeling infrastructure, identity, and workplace systems using YAML, validation, summaries, and diagrams.
@@ -244,6 +246,20 @@ Define once → validate → analyze → visualize → reuse.
 - Structure over slides
 - Simplicity over abstraction
 - Built for real operations
+
+---
+
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for planned features.
+
+---
+
+## Security
+
+Zephyr runs locally. No data is sent anywhere.
+
+Do not commit secrets or credentials into schema files. Use environment variables or ignored local files for sensitive values.
 
 ---
 
