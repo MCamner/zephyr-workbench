@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)",
+      "Read(//tmp/**)",
+      "Read(//Users/mansys/macos-scripts/**)",
+      "Bash(git -C /Users/mansys/macos-scripts remote -v)",
+      "Bash(git:*)",
+      "Bash(bash -c ':*)"
+    ]
+  }
+}
