@@ -109,9 +109,9 @@ def search_architecture(architecture: Architecture, query: str) -> str:
         if lines:
             lines.append("")
         lines.append("Controls:")
-        for c in ctrl_hits:
-            targets = ", ".join(c.applies_to)
-            lines.append(f"  [{c.type}] {c.name} → {targets}")
+        for ctrl in ctrl_hits:
+            targets = ", ".join(ctrl.applies_to)
+            lines.append(f"  [{ctrl.type}] {ctrl.name} → {targets}")
 
     sh_hits = [
         s for s in architecture.stakeholders
