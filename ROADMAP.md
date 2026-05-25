@@ -23,11 +23,11 @@ Stabilize the core architecture model and validation engine before expanding int
 
 ## v0.1.1 — Validation Stabilization
 
-- [ ] Stronger validation rules
-- [ ] Dependency validation
-- [ ] Circular dependency detection
-- [ ] Trust boundary validation
-- [ ] Architecture consistency checks
+- [x] Stronger validation rules
+- [x] Dependency validation
+- [x] Circular dependency detection
+- [x] Trust boundary validation
+- [x] Architecture consistency checks
 - [ ] Improved markdown summaries
 - [ ] Normalize output formats
 - [ ] Mermaid rendering consistency

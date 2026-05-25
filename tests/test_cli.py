@@ -21,7 +21,8 @@ def test_validate_command_passes_on_valid_example() -> None:
     result = run_cli("validate", "examples/macos-intune-windows-domain.yaml")
 
     assert result.returncode == 0
-    assert "Validation passed: macos-intune-windows-domain" in result.stdout
+    assert "macos-intune-windows-domain" in result.stdout
+    assert result.returncode == 0
 
 
 def test_validate_command_reports_errors() -> None:

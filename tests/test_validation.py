@@ -94,4 +94,90 @@ def test_load_validation_result_returns_architecture_and_warnings(tmp_path: Path
     result = load_validation_result(path)
 
     assert result.architecture.name == "warning-case"
-    assert result.warnings == ["endpoint-to-endpoint flow detected (laptop-a -> laptop-b)"]
+    assert "endpoint-to-endpoint flow detected (laptop-a -> laptop-b)" in result.warnings
+
+
+def test_collect_validation_warnings_detects_circular_dependency() -> None:
+    data = {
+        "name": "cycle-case",
+        "components": [
+            {"name": "a", "type": "application"},
+            {"name": "b", "type": "application"},
+            {"name": "c", "type": "application"},
+        ],
+        "flows": [
+            {"from": "a", "to": "b"},
+            {"from": "b", "to": "c"},
+            {"from": "c", "to": "a"},
+        ],
+    }
+
+    warnings = collect_validation_warnings(data)
+
+    assert any("circular dependency detected" in w for w in warnings)
+
+
+def test_collect_validation_warnings_detects_orphaned_component() -> None:
+    data = {
+        "name": "orphan-case",
+        "components": [
+            {"name": "connected", "type": "application"},
+            {"name": "isolated", "type": "application"},
+        ],
+        "flows": [
+            {"from": "connected", "to": "connected"},
+        ],
+    }
+
+    warnings = collect_validation_warnings(data)
+
+    assert "component 'isolated' has no flows (orphaned)" in warnings
+
+
+def test_collect_validation_warnings_detects_trust_boundary_violation() -> None:
+    data = {
+        "name": "boundary-case",
+        "components": [
+            {"name": "internal-app", "type": "application", "exposure": "internal"},
+            {"name": "external-api", "type": "application", "exposure": "external"},
+        ],
+        "flows": [
+            {"from": "internal-app", "to": "external-api", "encryption": "none"},
+        ],
+    }
+
+    warnings = collect_validation_warnings(data)
+
+    assert "unencrypted flow crosses trust boundary (internal-app → external-api)" in warnings
+
+
+def test_collect_validation_warnings_detects_deprecated_in_flows() -> None:
+    data = {
+        "name": "deprecated-case",
+        "components": [
+            {"name": "old-service", "type": "application", "lifecycle": "deprecated"},
+            {"name": "new-service", "type": "application", "lifecycle": "active"},
+        ],
+        "flows": [
+            {"from": "new-service", "to": "old-service"},
+        ],
+    }
+
+    warnings = collect_validation_warnings(data)
+
+    assert "deprecated component 'old-service' is still referenced in flows" in warnings
+
+
+def test_collect_validation_warnings_detects_high_risk_without_mitigation() -> None:
+    data = {
+        "name": "risk-case",
+        "components": [{"name": "app", "type": "application"}],
+        "flows": [{"from": "app", "to": "app"}],
+        "risks": [
+            {"id": "R1", "title": "Data breach", "severity": "critical"},
+        ],
+    }
+
+    warnings = collect_validation_warnings(data)
+
+    assert "risk 'R1' has severity 'critical' but no mitigation defined" in warnings

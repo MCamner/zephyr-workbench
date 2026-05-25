@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from zephyr.datamodel import (
@@ -402,14 +403,21 @@ def collect_validation_warnings(data: dict[str, Any]) -> list[str]:
     warnings: list[str] = []
     components = data.get("components", [])
     flows = data.get("flows", [])
+    risks = data.get("risks", [])
 
-    component_types = {
-        item["name"]: item["type"]
-        for item in components
-        if isinstance(item, dict)
-        and isinstance(item.get("name"), str)
-        and isinstance(item.get("type"), str)
-    }
+    component_types: dict[str, str] = {}
+    component_exposure: dict[str, str] = {}
+    component_lifecycle: dict[str, str] = {}
+    for item in components:
+        if not isinstance(item, dict):
+            continue
+        name = item.get("name")
+        if not isinstance(name, str):
+            continue
+        if isinstance(item.get("type"), str):
+            component_types[name] = item["type"]
+        component_exposure[name] = item.get("exposure") or ""
+        component_lifecycle[name] = item.get("lifecycle") or ""
 
     gateway_names = [
         name for name, component_type in component_types.items() if component_type == "access-gateway"
@@ -419,23 +427,101 @@ def collect_validation_warnings(data: dict[str, Any]) -> list[str]:
 
     identity_types = {"identity", "identity-provider", "cloud-identity", "on-prem-identity"}
 
+    components_in_flows: set[str] = set()
+    deprecated_warned: set[str] = set()
+
     for flow in flows:
         if not isinstance(flow, dict):
             continue
 
         source = flow.get("from")
         target = flow.get("to")
+        encryption = flow.get("encryption") or "none"
 
-        if component_types.get(source) == "endpoint" and component_types.get(target) == "endpoint":
-            warnings.append(f"endpoint-to-endpoint flow detected ({source} -> {target})")
+        if isinstance(source, str):
+            components_in_flows.add(source)
+        if isinstance(target, str):
+            components_in_flows.add(target)
 
-        if flow.get("authentication") == "mfa" and component_types.get(target) not in identity_types:
+        if isinstance(source, str) and isinstance(target, str):
+            if component_types.get(source) == "endpoint" and component_types.get(target) == "endpoint":
+                warnings.append(f"endpoint-to-endpoint flow detected ({source} -> {target})")
+
+            if flow.get("authentication") == "mfa" and component_types.get(target) not in identity_types:
+                warnings.append(
+                    f"MFA flow target should be an identity component ({source} -> {target})"
+                )
+
+            src_external = component_exposure.get(source) == "external"
+            dst_external = component_exposure.get(target) == "external"
+            if (src_external or dst_external) and encryption == "none":
+                warnings.append(
+                    f"unencrypted flow crosses trust boundary ({source} → {target})"
+                )
+
+        for node in (source, target):
+            if isinstance(node, str) and component_lifecycle.get(node) == "deprecated" and node not in deprecated_warned:
+                deprecated_warned.add(node)
+                warnings.append(f"deprecated component '{node}' is still referenced in flows")
+
+    for name in component_types:
+        if name not in components_in_flows:
+            warnings.append(f"component '{name}' has no flows (orphaned)")
+
+    warnings += _detect_flow_cycles(flows)
+
+    for risk in risks:
+        if not isinstance(risk, dict):
+            continue
+        severity = risk.get("severity")
+        risk_id = risk.get("id") or "?"
+        if severity in ("high", "critical") and not risk.get("mitigation"):
             warnings.append(
-                f"MFA flow target should be an identity component ({source} -> {target})"
+                f"risk '{risk_id}' has severity '{severity}' but no mitigation defined"
             )
 
     warnings += _collect_rule_warnings(data)
     return warnings
+
+
+def _detect_flow_cycles(flows: list[Any]) -> list[str]:
+    graph: dict[str, list[str]] = {}
+    for flow in flows:
+        if not isinstance(flow, dict):
+            continue
+        src = flow.get("from")
+        dst = flow.get("to")
+        if isinstance(src, str) and isinstance(dst, str) and src != dst:
+            graph.setdefault(src, []).append(dst)
+
+    found: list[str] = []
+    visited: set[str] = set()
+    reported: set[frozenset] = set()
+
+    def dfs(node: str, path: list[str], on_stack: set[str]) -> None:
+        visited.add(node)
+        on_stack.add(node)
+        path.append(node)
+        for neighbor in graph.get(node, []):
+            if neighbor in on_stack:
+                idx = path.index(neighbor)
+                cycle = path[idx:]
+                key: frozenset = frozenset(cycle)
+                if key not in reported:
+                    reported.add(key)
+                    found.append(
+                        f"circular dependency detected: {' → '.join(cycle)} → {neighbor}"
+                    )
+            elif neighbor not in visited:
+                dfs(neighbor, path, on_stack)
+        path.pop()
+        on_stack.discard(node)
+
+    for node in list(graph.keys()):
+        if node not in visited:
+            dfs(node, [], set())
+
+    return found
 
 
 def _collect_rule_warnings(data: dict[str, Any]) -> list[str]:
