@@ -102,8 +102,8 @@ def search_architecture(architecture: Architecture, query: str) -> str:
                 lines.append(f"    Mitigation: {r.mitigation}")
 
     ctrl_hits = [
-        c for c in architecture.controls
-        if _matches({"name": c.name, "type": c.type, "description": c.description}, filters)
+        ctrl for ctrl in architecture.controls
+        if _matches({"name": ctrl.name, "type": ctrl.type, "description": ctrl.description}, filters)
     ]
     if ctrl_hits:
         if lines:
