@@ -64,6 +64,17 @@ Introduce architecture cognition and semantic analysis.
 - [ ] Risk explanation workflows
 - [ ] Architecture anti-pattern detection
 
+### mq-mcp Integration
+
+Expose Zephyr as a safe tool runtime for agents and local MCP clients.
+
+- [ ] Stable JSON output contracts for validation, summary, diagram, diff, and search
+- [ ] Read-only MCP tools for inspecting architecture models
+- [ ] Validation-first MCP tool flow: load → validate → analyze → render
+- [ ] Explicit write controls for generated YAML suggestions
+- [ ] Tool result schemas that agents can consume without parsing terminal text
+- [ ] Guardrails for risky operations: no silent model rewrites, no autonomous remediation
+
 ---
 
 ## v0.4.0 — Diagram Intelligence
