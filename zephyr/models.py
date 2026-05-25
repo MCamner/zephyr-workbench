@@ -18,6 +18,13 @@ class Meta:
 
 
 @dataclass
+class TrustBoundary:
+    name: str
+    description: str = ""
+    color: str = ""
+
+
+@dataclass
 class Component:
     name: str
     type: str
@@ -26,6 +33,8 @@ class Component:
     criticality: str = ""
     exposure: str = ""
     lifecycle: str = ""
+    trust_boundary: str = ""
+    tags: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -74,3 +83,4 @@ class Architecture:
     risks: List[Risk] = field(default_factory=list)
     controls: List[Control] = field(default_factory=list)
     stakeholders: List[Stakeholder] = field(default_factory=list)
+    trust_boundaries: List[TrustBoundary] = field(default_factory=list)

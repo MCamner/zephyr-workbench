@@ -60,6 +60,7 @@ def validate_architecture_data(data: dict[str, Any]) -> None:
     risks = data.get("risks", [])
     controls = data.get("controls", [])
     stakeholders = data.get("stakeholders", [])
+    trust_boundaries = data.get("trust_boundaries", [])
     domains = data.get("domains")
     meta = data.get("meta")
 
@@ -122,6 +123,26 @@ def validate_architecture_data(data: dict[str, Any]) -> None:
                             errors.append(
                                 f"meta.environment[{index}] '{value}' is invalid; expected one of: {allowed}"
                             )
+
+    boundary_names: set[str] = set()
+    if trust_boundaries:
+        if not isinstance(trust_boundaries, list):
+            errors.append("field 'trust_boundaries' must be a list")
+        else:
+            for index, boundary in enumerate(trust_boundaries, start=1):
+                location = f"trust_boundaries[{index}]"
+                if not isinstance(boundary, dict):
+                    errors.append(f"{location} must be a mapping")
+                    continue
+                boundary_name = boundary.get("name")
+                if not boundary_name:
+                    errors.append(f"{location}.name is required")
+                elif not isinstance(boundary_name, str):
+                    errors.append(f"{location}.name must be a string")
+                elif boundary_name in boundary_names:
+                    errors.append(f"duplicate trust_boundary name: {boundary_name}")
+                else:
+                    boundary_names.add(boundary_name)
 
     if "controls" in data and not isinstance(controls, list):
         errors.append("field 'controls' must be a list")
@@ -404,6 +425,20 @@ def collect_validation_warnings(data: dict[str, Any]) -> list[str]:
     components = data.get("components", [])
     flows = data.get("flows", [])
     risks = data.get("risks", [])
+
+    defined_boundaries: set[str] = set()
+    for b in data.get("trust_boundaries") or []:
+        if isinstance(b, dict) and isinstance(b.get("name"), str):
+            defined_boundaries.add(b["name"])
+
+    for item in components:
+        if not isinstance(item, dict):
+            continue
+        tb = item.get("trust_boundary")
+        if tb and isinstance(tb, str) and defined_boundaries and tb not in defined_boundaries:
+            warnings.append(
+                f"component '{item.get('name')}' references unknown trust_boundary '{tb}'"
+            )
 
     component_types: dict[str, str] = {}
     component_exposure: dict[str, str] = {}

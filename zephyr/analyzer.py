@@ -4,6 +4,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Union
 
+from zephyr.datamodel import RISK_SCORE_MATRIX
 from zephyr.models import Architecture, Meta
 from zephyr.validation import load_validated_architecture
 
@@ -41,6 +42,8 @@ def summarize_architecture(architecture: Architecture) -> str:
         lines.append(f"Controls:     {summary['controls']}")
     if summary["stakeholders"] > 0:
         lines.append(f"Stakeholders: {summary['stakeholders']}")
+    if summary["trust_boundaries"] > 0:
+        lines.append(f"Boundaries:   {summary['trust_boundaries']}")
 
     if architecture.components:
         lines.append("")
@@ -69,7 +72,11 @@ def summarize_architecture(architecture: Architecture) -> str:
         lines.append("Risks:")
         for risk in summary["risk_details"]:
             severity = risk["severity"].upper()
-            lines.append(f"- [{severity}] {risk['id']}: {risk['title']}")
+            score_str = ""
+            score = risk.get("score")
+            if score is not None:
+                score_str = f" score:{score}"
+            lines.append(f"- [{severity}{score_str}] {risk['id']}: {risk['title']}")
             meta_parts = []
             if risk.get("likelihood"):
                 meta_parts.append(f"likelihood: {risk['likelihood']}")
@@ -95,10 +102,29 @@ def summarize_architecture(architecture: Architecture) -> str:
         for s in summary["stakeholder_details"]:
             lines.append(f"- {s['name']} ({s['role']})")
 
+    if summary["boundary_details"]:
+        lines.append("")
+        lines.append("Trust Boundaries:")
+        for b in summary["boundary_details"]:
+            desc = f" — {b['description']}" if b.get("description") else ""
+            lines.append(f"- {b['name']}{desc}")
+
     return "\n".join(lines)
 
 
+def _risk_score(severity: str, likelihood: str) -> int | None:
+    if not likelihood:
+        return None
+    return RISK_SCORE_MATRIX.get((severity.lower(), likelihood.lower()))
+
+
 def summarize_architecture_data(architecture: Architecture) -> dict:
+    risk_details = []
+    for risk in architecture.risks:
+        d = asdict(risk)
+        d["score"] = _risk_score(risk.severity, risk.likelihood)
+        risk_details.append(d)
+
     return {
         "name": architecture.name,
         "description": architecture.description,
@@ -108,7 +134,9 @@ def summarize_architecture_data(architecture: Architecture) -> dict:
         "risks": len(architecture.risks),
         "controls": len(architecture.controls),
         "stakeholders": len(architecture.stakeholders),
-        "risk_details": [asdict(risk) for risk in architecture.risks],
+        "trust_boundaries": len(architecture.trust_boundaries),
+        "risk_details": risk_details,
         "control_details": [asdict(control) for control in architecture.controls],
         "stakeholder_details": [asdict(s) for s in architecture.stakeholders],
+        "boundary_details": [asdict(b) for b in architecture.trust_boundaries],
     }

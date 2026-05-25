@@ -52,3 +52,20 @@ TYPE_TO_DOMAIN = {
 }
 
 DEFAULT_VERSION = "v1"
+
+RISK_SCORE_MATRIX: dict[tuple[str, str], int] = {
+    ("low", "low"): 1,
+    ("low", "medium"): 2,
+    ("low", "high"): 3,
+    ("medium", "low"): 2,
+    ("medium", "medium"): 4,
+    ("medium", "high"): 6,
+    ("high", "low"): 3,
+    ("high", "medium"): 6,
+    ("high", "high"): 9,
+    ("critical", "low"): 4,
+    ("critical", "medium"): 8,
+    ("critical", "high"): 12,
+}
+
+SEVERITY_ORDER = {"low": 1, "medium": 2, "high": 3, "critical": 4}

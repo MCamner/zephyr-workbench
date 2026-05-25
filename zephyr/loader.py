@@ -13,6 +13,7 @@ from zephyr.models import (
     Meta,
     Risk,
     Stakeholder,
+    TrustBoundary,
 )
 
 
@@ -57,6 +58,14 @@ def architecture_from_data(data: dict[str, Any]) -> Architecture:
         name=data["name"],
         description=data.get("description", ""),
         meta=_meta_from_data(data),
+        trust_boundaries=[
+            TrustBoundary(
+                name=item["name"],
+                description=item.get("description", ""),
+                color=item.get("color", ""),
+            )
+            for item in data.get("trust_boundaries", [])
+        ],
         components=[
             Component(
                 name=item["name"],
@@ -66,6 +75,8 @@ def architecture_from_data(data: dict[str, Any]) -> Architecture:
                 criticality=item.get("criticality", ""),
                 exposure=item.get("exposure", ""),
                 lifecycle=item.get("lifecycle", ""),
+                trust_boundary=item.get("trust_boundary", ""),
+                tags=item.get("tags") or [],
             )
             for item in data.get("components", [])
         ],

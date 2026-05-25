@@ -125,12 +125,44 @@ def to_mermaid(architecture: Architecture) -> str:
     lines.append("")
 
     class_assignments: list[tuple[str, str]] = []
-    for component in architecture.components:
-        node_id = _node_id(component.name)
-        lines.append(f'    {node_id}["{component.name} ({component.type})"]')
-        css_class = _TYPE_TO_CLASS.get(component.type)
-        if css_class:
-            class_assignments.append((node_id, css_class))
+
+    if architecture.trust_boundaries:
+        boundary_names = [b.name for b in architecture.trust_boundaries]
+        bucketed: dict[str, list] = {name: [] for name in boundary_names}
+        unbounded: list = []
+        for component in architecture.components:
+            if component.trust_boundary in bucketed:
+                bucketed[component.trust_boundary].append(component)
+            else:
+                unbounded.append(component)
+
+        for boundary in architecture.trust_boundaries:
+            members = bucketed[boundary.name]
+            if not members:
+                continue
+            safe_id = _node_id(boundary.name)
+            lines.append(f"    subgraph {safe_id} [\"{boundary.name}\"]")
+            for component in members:
+                node_id = _node_id(component.name)
+                lines.append(f'        {node_id}["{component.name} ({component.type})"]')
+                css_class = _TYPE_TO_CLASS.get(component.type)
+                if css_class:
+                    class_assignments.append((node_id, css_class))
+            lines.append("    end")
+
+        for component in unbounded:
+            node_id = _node_id(component.name)
+            lines.append(f'    {node_id}["{component.name} ({component.type})"]')
+            css_class = _TYPE_TO_CLASS.get(component.type)
+            if css_class:
+                class_assignments.append((node_id, css_class))
+    else:
+        for component in architecture.components:
+            node_id = _node_id(component.name)
+            lines.append(f'    {node_id}["{component.name} ({component.type})"]')
+            css_class = _TYPE_TO_CLASS.get(component.type)
+            if css_class:
+                class_assignments.append((node_id, css_class))
 
     if class_assignments:
         lines.append("")

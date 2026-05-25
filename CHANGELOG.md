@@ -1,8 +1,15 @@
 # Changelog
 
-## [0.1.1] — 2026-05-25
+## [0.2.0] — 2026-05-25
 
-### Added
+- `TrustBoundary` model: named security zones declared at architecture level
+- `trust_boundary` field on components: assign components to a named boundary
+- `tags` field on components: free-form labels for filtering and documentation
+- Risk scoring: severity × likelihood matrix, score shown in `zephyr summary` output
+- Mermaid subgraph rendering: components grouped by trust boundary in generated diagrams
+- Trust boundary validation: warns when a component references an undefined boundary name
+
+## [0.1.1] — 2026-05-25
 
 - Circular dependency detection: warns when flows form a directed cycle
 - Dependency validation: warns about components with no flows (orphaned)
@@ -13,7 +20,5 @@
 - Normalized output format: validation status printed before warnings in all commands
 - Mermaid rendering consistency: `%%` architecture name comment added to all generated diagrams
 - Enterprise examples: `citrix-igel-desktop-delivery.yaml` and `zero-trust-access.yaml`
-
-### Initial
 
 - Initial release setup

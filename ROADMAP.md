@@ -17,7 +17,9 @@ The long-term goal is to support:
 
 ## Current Focus
 
-Stabilize the core architecture model and validation engine before expanding into advanced AI-assisted workflows.
+Next: v0.3.1 — stabilize architecture intelligence contracts for mq-mcp and agent workflows.
+
+Focus on machine-readable outputs, safe tool boundaries, and validation-first execution before adding broader review automation.
 
 ---
 
@@ -37,14 +39,16 @@ Stabilize the core architecture model and validation engine before expanding int
 
 ## v0.2.0 — Schema Expansion
 
-- [ ] Richer infrastructure schemas
+- [x] Trust boundary support (`trust_boundaries` list, `trust_boundary` on components)
+- [x] Risk scoring (severity × likelihood matrix, computed score in summary)
+- [x] Richer component schema (`tags`, extended fields)
+- [x] Mermaid subgraph rendering per trust boundary
+- [x] Trust boundary validation (unknown reference warnings)
 - [ ] Network topology modeling
-- [ ] Trust boundary support
 - [ ] IAM / identity modeling
 - [ ] Application dependency mapping
 - [ ] Endpoint and device modeling
 - [ ] Cloud provider abstractions
-- [ ] Risk scoring
 - [ ] Policy validation
 
 ---
@@ -63,6 +67,20 @@ Introduce architecture cognition and semantic analysis.
 - [ ] YAML improvement suggestions
 - [ ] Risk explanation workflows
 - [ ] Architecture anti-pattern detection
+
+---
+
+## v0.3.1 — MCP Runtime Contracts
+
+Make Zephyr easier to call safely from mq-mcp, agents, scripts, and local automation.
+
+- [ ] Normalize JSON result envelopes across validation, summary, diagram, diff, and search
+- [ ] Add explicit status, errors, warnings, artifacts, and metadata fields to machine-readable output
+- [ ] Ensure CLI output can be consumed without parsing human-oriented terminal text
+- [ ] Document read-only tool contracts for architecture inspection
+- [ ] Define write-safe contracts for YAML suggestions and generated artifacts
+- [ ] Add contract tests for representative valid, warning, and error cases
+- [ ] Keep human CLI output stable while improving structured output
 
 ### mq-mcp Integration
 
