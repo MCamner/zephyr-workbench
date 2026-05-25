@@ -1,0 +1,257 @@
+name: citrix-igel-desktop-delivery
+description: >
+  Citrix DaaS delivery to IGEL OS12 thin clients. IGEL endpoints managed via UMS
+  and ICG for remote sites. Users authenticate through Entra ID with Conditional
+  Access before accessing Citrix-hosted virtual desktops via NetScaler Gateway.
+
+meta:
+  version: v1
+  owner: platform-team
+  environment: [prod]
+  criticality: high
+
+domains:
+  - business
+  - application
+  - data
+  - technology
+
+components:
+  - name: igel-endpoint
+    type: endpoint
+    description: IGEL OS12 thin client — stateless, firmware-locked, SCEP-enrolled
+    domain: technology
+    criticality: high
+    exposure: internal
+    lifecycle: active
+
+  - name: ums
+    type: device-management
+    description: IGEL Universal Management Suite — firmware, profiles, and policy enforcement for all endpoints
+    domain: application
+    criticality: mission-critical
+    exposure: internal
+    lifecycle: active
+
+  - name: icg
+    type: access-gateway
+    description: IGEL Cloud Gateway — encrypted relay for endpoints at remote sites or outside the corporate network
+    domain: technology
+    criticality: high
+    exposure: external
+    lifecycle: active
+
+  - name: entra-id
+    type: cloud-identity
+    description: Entra ID — primary identity provider for user authentication, MFA, and Conditional Access
+    domain: application
+    criticality: mission-critical
+    exposure: external
+    lifecycle: active
+
+  - name: conditional-access
+    type: access-policy
+    description: Entra ID Conditional Access — enforces device compliance and MFA before granting Citrix access
+    domain: application
+    criticality: high
+    exposure: external
+    lifecycle: active
+
+  - name: netscaler-gateway
+    type: access-gateway
+    description: Citrix NetScaler Gateway — TLS termination and authentication proxy for all Citrix sessions
+    domain: technology
+    criticality: high
+    exposure: external
+    lifecycle: active
+
+  - name: citrix-cloud
+    type: application
+    description: Citrix DaaS control plane — session brokering, machine catalog management, policy enforcement
+    domain: application
+    criticality: high
+    exposure: external
+    lifecycle: active
+
+  - name: vda
+    type: application
+    description: Virtual Delivery Agent — Windows session VMs delivering virtual desktops to thin clients
+    domain: application
+    criticality: high
+    exposure: internal
+    lifecycle: active
+
+  - name: certificate-authority
+    type: pki
+    description: Internal PKI issuing SCEP-enrolled device certificates for IGEL endpoint authentication
+    domain: technology
+    criticality: high
+    exposure: internal
+    lifecycle: active
+
+flows:
+  - from: igel-endpoint
+    to: ums
+    label: management (internal)
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
+  - from: igel-endpoint
+    to: icg
+    label: management relay (remote)
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
+  - from: icg
+    to: ums
+    label: relay management traffic
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
+  - from: igel-endpoint
+    to: entra-id
+    label: user sign-in
+    protocol: https
+    authentication: mfa
+    encryption: tls
+    direction: outbound
+
+  - from: entra-id
+    to: conditional-access
+    label: evaluate policy
+    protocol: https
+    encryption: tls
+    direction: outbound
+
+  - from: igel-endpoint
+    to: netscaler-gateway
+    label: launch Citrix session
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
+  - from: netscaler-gateway
+    to: citrix-cloud
+    label: session broker request
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
+  - from: citrix-cloud
+    to: vda
+    label: provision desktop session
+    protocol: https
+    encryption: tls
+    direction: outbound
+
+  - from: igel-endpoint
+    to: certificate-authority
+    label: obtain device certificate
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
+risks:
+  - id: R1
+    title: NetScaler Gateway is a single point of failure for all Citrix sessions
+    severity: high
+    likelihood: medium
+    impact: high
+    description: >
+      All Citrix session traffic routes through NetScaler Gateway. An outage or
+      misconfiguration blocks all virtual desktop access regardless of Citrix Cloud availability.
+    mitigation: >
+      Deploy NetScaler in an HA pair with automatic failover. Configure health
+      monitoring and test failover scenarios quarterly.
+
+  - id: R2
+    title: UMS compromise gives full control over all IGEL endpoints
+    severity: high
+    likelihood: low
+    impact: high
+    description: >
+      UMS controls firmware, configuration, and policy enforcement for every IGEL endpoint.
+      A compromised UMS can push malicious firmware or configuration to all managed devices.
+    mitigation: >
+      Restrict UMS admin access with MFA and role-based permissions. Run UMS on a hardened
+      host with audit logging. Monitor for unexpected configuration changes.
+
+  - id: R3
+    title: ICG internet exposure creates a management plane attack surface
+    severity: medium
+    likelihood: medium
+    impact: high
+    description: >
+      ICG is publicly reachable to support remote IGEL endpoints. A vulnerability or
+      misconfiguration could expose management traffic to external threats.
+    mitigation: >
+      Enforce mutual TLS on ICG. Restrict access to known certificate fingerprints.
+      Monitor ICG access logs for anomalies.
+
+  - id: R4
+    title: Session data exposure if TLS is not enforced end-to-end
+    severity: medium
+    likelihood: low
+    impact: high
+    description: >
+      If TLS is not enforced between NetScaler and VDAs, Citrix session tokens and
+      user data may be exposed on internal network segments.
+    mitigation: >
+      Enforce TLS for all internal Citrix protocols. Audit VDA and broker settings
+      to ensure no plain-text fallback is permitted.
+
+controls:
+  - name: certificate-based-device-auth
+    type: technical
+    applies_to:
+      - igel-endpoint
+      - certificate-authority
+      - ums
+      - netscaler-gateway
+    description: >
+      IGEL endpoints use SCEP-issued device certificates for management and session
+      authentication. No valid certificate means no access to UMS, ICG, or NetScaler.
+
+  - name: conditional-access-enforcement
+    type: technical
+    applies_to:
+      - conditional-access
+      - entra-id
+    description: >
+      Conditional Access policies require device compliance and MFA completion before
+      granting Citrix access. Evaluated on every session launch.
+
+  - name: ums-backup-and-recovery
+    type: process
+    applies_to:
+      - ums
+    description: >
+      Weekly automated backup of UMS configuration. Monthly restore test to validate
+      backup integrity. Recovery procedure documented and tested annually.
+
+  - name: netscaler-ha-policy
+    type: policy
+    applies_to:
+      - netscaler-gateway
+    description: >
+      NetScaler Gateway must maintain an HA pair with automated failover.
+      RTO target under 2 minutes for session broker recovery.
+
+stakeholders:
+  - name: platform-team
+    role: owner
+
+  - name: it-security
+    role: security
+
+  - name: end-users
+    role: user

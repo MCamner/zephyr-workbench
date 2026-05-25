@@ -1,0 +1,259 @@
+name: zero-trust-access
+description: >
+  Zero Trust access model — no implicit trust based on network location.
+  Every access request is authenticated, authorized, and continuously validated
+  against identity, device posture, and context before granting access to resources.
+
+meta:
+  version: v1
+  owner: security-team
+  environment: [prod]
+  criticality: mission-critical
+
+domains:
+  - business
+  - application
+  - data
+  - technology
+
+components:
+  - name: user-device
+    type: endpoint
+    description: Corporate or BYOD endpoint — identity and posture assessed before any access is granted
+    domain: technology
+    criticality: high
+    exposure: external
+    lifecycle: active
+
+  - name: identity-provider
+    type: cloud-identity
+    description: Entra ID — authoritative identity source, issues tokens after MFA and risk evaluation
+    domain: application
+    criticality: mission-critical
+    exposure: external
+    lifecycle: active
+
+  - name: device-posture
+    type: security-control
+    description: Endpoint posture agent — assesses patch level, encryption, and compliance before access
+    domain: technology
+    criticality: high
+    exposure: internal
+    lifecycle: active
+
+  - name: ztna-policy-engine
+    type: access-policy
+    description: Zero Trust policy engine — evaluates identity, device posture, and context for every request
+    domain: application
+    criticality: mission-critical
+    exposure: external
+    lifecycle: active
+
+  - name: access-proxy
+    type: access-gateway
+    description: ZTNA gateway — proxies all access to internal resources, no direct network path to resources
+    domain: technology
+    criticality: high
+    exposure: external
+    lifecycle: active
+
+  - name: internal-app
+    type: application
+    description: On-premises or private cloud application — never directly exposed to the internet
+    domain: application
+    criticality: high
+    exposure: internal
+    lifecycle: active
+
+  - name: saas-app
+    type: application
+    description: Cloud SaaS application (e.g. M365, GitHub) — access mediated through identity provider
+    domain: application
+    criticality: medium
+    exposure: external
+    lifecycle: active
+
+  - name: siem
+    type: security-control
+    description: SIEM — continuous monitoring and anomaly detection across all access events
+    domain: application
+    criticality: high
+    exposure: internal
+    lifecycle: active
+
+flows:
+  - from: user-device
+    to: identity-provider
+    label: authenticate
+    protocol: https
+    authentication: mfa
+    encryption: tls
+    direction: outbound
+
+  - from: user-device
+    to: device-posture
+    label: posture assessment
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
+  - from: device-posture
+    to: ztna-policy-engine
+    label: posture signal
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
+  - from: identity-provider
+    to: ztna-policy-engine
+    label: identity signal
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
+  - from: user-device
+    to: access-proxy
+    label: access request
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
+  - from: access-proxy
+    to: ztna-policy-engine
+    label: authorize request
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
+  - from: access-proxy
+    to: internal-app
+    label: proxy to resource
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
+  - from: user-device
+    to: saas-app
+    label: saas access via IdP
+    protocol: https
+    authentication: mfa
+    encryption: tls
+    direction: outbound
+
+  - from: access-proxy
+    to: siem
+    label: access events
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
+  - from: device-posture
+    to: siem
+    label: posture events
+    protocol: https
+    authentication: certificate
+    encryption: tls
+    direction: outbound
+
+risks:
+  - id: R1
+    title: Identity provider is a single point of failure for all access
+    severity: critical
+    likelihood: low
+    impact: high
+    description: >
+      All resource access depends on the identity provider for authentication tokens.
+      An outage blocks access to all protected resources, including internal apps and SaaS.
+    mitigation: >
+      Deploy identity provider in a geographically distributed configuration with
+      automatic failover. Test identity provider resilience quarterly.
+
+  - id: R2
+    title: Device posture gap during re-evaluation window
+    severity: high
+    likelihood: medium
+    impact: high
+    description: >
+      A device that passes posture assessment may become non-compliant before the next
+      evaluation cycle, creating a trust gap where access is granted on stale posture data.
+    mitigation: >
+      Configure continuous posture re-evaluation at short intervals (15 minutes or less).
+      Trigger immediate re-evaluation on policy-relevant events such as OS updates or disk state changes.
+
+  - id: R3
+    title: Access proxy becomes a critical path bottleneck
+    severity: high
+    likelihood: medium
+    impact: high
+    description: >
+      All traffic to internal resources routes through the access proxy. A proxy failure
+      or capacity limit blocks all access regardless of identity or posture state.
+    mitigation: >
+      Deploy access proxy in a horizontally scalable HA configuration. Monitor latency
+      and throughput and alert on degradation before it reaches end-users.
+
+  - id: R4
+    title: SIEM blind spot if access events are dropped
+    severity: medium
+    likelihood: low
+    impact: high
+    description: >
+      If access events do not reach SIEM due to network issues, misconfiguration, or
+      agent failure, unauthorized access may go undetected.
+    mitigation: >
+      Configure guaranteed delivery for access event streams. Alert on SIEM data gaps
+      exceeding 5 minutes. Validate log coverage during quarterly reviews.
+
+controls:
+  - name: continuous-identity-verification
+    type: technical
+    applies_to:
+      - identity-provider
+      - ztna-policy-engine
+    description: >
+      Every access request requires a valid identity token. Tokens are short-lived and
+      evaluated against current risk signals before granting access.
+
+  - name: device-posture-enforcement
+    type: technical
+    applies_to:
+      - device-posture
+      - ztna-policy-engine
+    description: >
+      Access is denied if device posture falls below the required baseline. Posture checks
+      run continuously and revoke access immediately on failure.
+
+  - name: least-privilege-access-policy
+    type: policy
+    applies_to:
+      - ztna-policy-engine
+      - access-proxy
+    description: >
+      Users are granted access only to specific resources required for their role.
+      No implicit trust from network location — access is per-resource, not per-network.
+
+  - name: access-event-monitoring
+    type: technical
+    applies_to:
+      - siem
+      - access-proxy
+    description: >
+      All access events are streamed to SIEM in real time. Anomaly detection alerts on
+      unusual access patterns, off-hours activity, and posture failures.
+
+stakeholders:
+  - name: security-team
+    role: security
+
+  - name: platform-team
+    role: operator
+
+  - name: end-users
+    role: user

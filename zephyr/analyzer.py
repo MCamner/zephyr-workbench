@@ -42,6 +42,28 @@ def summarize_architecture(architecture: Architecture) -> str:
     if summary["stakeholders"] > 0:
         lines.append(f"Stakeholders: {summary['stakeholders']}")
 
+    if architecture.components:
+        lines.append("")
+        name_w = max(len(c.name) for c in architecture.components)
+        type_w = max(len(c.type) for c in architecture.components)
+        for c in architecture.components:
+            desc = c.description.strip().replace("\n", " ") if c.description else ""
+            if len(desc) > 58:
+                desc = desc[:55] + "..."
+            row = f"  {c.name:<{name_w}}  {c.type:<{type_w}}  {desc}"
+            lines.append(row.rstrip())
+
+    if architecture.flows:
+        lines.append("")
+        for f in architecture.flows:
+            route = f"{f.source} → {f.target}"
+            label_parts = [p for p in [f.label, f.authentication, f.encryption] if p]
+            label = " | ".join(label_parts)
+            if label:
+                lines.append(f"  {route:<42}  {label}")
+            else:
+                lines.append(f"  {route}")
+
     if summary["risk_details"]:
         lines.append("")
         lines.append("Risks:")

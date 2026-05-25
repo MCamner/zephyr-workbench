@@ -116,7 +116,8 @@ def _build_meta_block(architecture: Architecture) -> str:
 
 
 def to_mermaid(architecture: Architecture) -> str:
-    lines = ["graph TD"]
+    lines = [f"%% {architecture.name}"]
+    lines.append("graph TD")
     lines.append("")
 
     for class_name, style in _CLASS_DEFS.items():

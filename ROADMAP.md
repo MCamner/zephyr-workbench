@@ -28,10 +28,10 @@ Stabilize the core architecture model and validation engine before expanding int
 - [x] Circular dependency detection
 - [x] Trust boundary validation
 - [x] Architecture consistency checks
-- [ ] Improved markdown summaries
-- [ ] Normalize output formats
-- [ ] Mermaid rendering consistency
-- [ ] More enterprise examples (Intune + Entra, Citrix + IGEL, Zero Trust)
+- [x] Improved markdown summaries
+- [x] Normalize output formats
+- [x] Mermaid rendering consistency
+- [x] More enterprise examples (Intune + Entra, Citrix + IGEL, Zero Trust)
 
 ---
 

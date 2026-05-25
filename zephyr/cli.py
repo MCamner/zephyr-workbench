@@ -238,11 +238,11 @@ def _run_pipeline(args, livereload: bool = False) -> Path:
     diagram_path = _default_diagram_path(args.file, args.output_dir, args.format)
     diagram = _render_diagram(architecture, args.format, livereload=livereload)
     _write_text_output(diagram, str(diagram_path))
-    _print_warnings(result.warnings)
     if result.warnings:
         print("Validation passed with warnings")
     else:
         print("Validation passed")
+    _print_warnings(result.warnings)
     print("")
     print(summarize_architecture(architecture))
     print("")
@@ -301,11 +301,11 @@ def main() -> None:
     try:
         if args.command == "validate":
             result = load_validation_result(args.file)
-            _print_warnings(result.warnings)
             if result.warnings:
                 print(f"Validation passed with warnings: {result.architecture.name}")
             else:
                 print(f"Validation passed: {result.architecture.name}")
+            _print_warnings(result.warnings)
             return
 
         if args.command == "summary":
