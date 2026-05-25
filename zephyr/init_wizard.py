@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from zephyr._prompts import (
     _print_section,
     _prompt_choice,
@@ -107,7 +109,7 @@ def _run_from_template(
 
 def prompt_meta(minimal: bool) -> dict:
     _print_section("Architecture")
-    meta = {
+    meta: dict[str, Any] = {
         "name": _prompt_required_text("Name"),
         "description": _prompt_text("Description", default=""),
     }
