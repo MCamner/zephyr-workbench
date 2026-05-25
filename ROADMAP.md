@@ -78,7 +78,7 @@ Bridge visual architecture and structured architecture models.
 
 ### mq-image-analyze Integration
 
-```
+```text
 diagram.png
   ↓
 mq-image-analyze
@@ -124,6 +124,7 @@ Zephyr Workbench becomes:
 - AI-assisted architecture review system
 
 **Not:**
+
 - Generic diagram tool
 - GUI-first modeling platform
 - Enterprise bloatware
@@ -145,6 +146,7 @@ Zephyr Workbench becomes:
 ## Non-Goals
 
 Do NOT build:
+
 - Electron apps or heavy GUI systems
 - Drag-and-drop editors
 - Autonomous architecture generation
@@ -156,7 +158,7 @@ Do NOT build:
 ## Ecosystem Integration
 
 | System | Role |
-|---|---|
+| --- | --- |
 | mq-image-analyze | Visual architecture interpretation, diagram → YAML |
 | repo-signal | Architecture repo cognition |
 | mq-agent | Workflow orchestration |

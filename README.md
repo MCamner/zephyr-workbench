@@ -4,7 +4,7 @@
 [![CI](https://github.com/MCamner/zephyr-workbench/actions/workflows/ci.yml/badge.svg)](https://github.com/MCamner/zephyr-workbench/actions/workflows/ci.yml)
 [![Status](https://img.shields.io/badge/status-active-brightgreen)](https://github.com/MCamner/zephyr-workbench)
 
-👉 **GitHub Pages:** https://mcamner.github.io/zephyr-workbench/
+👉 **GitHub Pages:** [https://mcamner.github.io/zephyr-workbench/](https://mcamner.github.io/zephyr-workbench/)
 
 **Model infrastructure. Understand flows. Generate architecture.**
 
