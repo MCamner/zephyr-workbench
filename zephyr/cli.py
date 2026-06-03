@@ -120,12 +120,54 @@ def _print_warnings(warnings: list[str]) -> None:
     print("")
 
 
+def _result_envelope(
+    *,
+    command: str,
+    source: str | None,
+    status: str,
+    errors: list[str] | None = None,
+    warnings: list[str] | None = None,
+    data: dict | None = None,
+    artifacts: list[dict] | None = None,
+) -> dict:
+    return {
+        "status": status,
+        "errors": errors or [],
+        "warnings": warnings or [],
+        "data": data or {},
+        "artifacts": artifacts or [],
+        "metadata": {
+            "command": command,
+            "source": source,
+            "schema_version": "zephyr-result.v1",
+        },
+    }
+
+
+def _validation_data(result) -> dict:
+    summary = summarize_architecture_data(result.architecture)
+    return {
+        "name": result.architecture.name,
+        "summary": summary,
+        "valid": True,
+    }
+
+
+def _print_json_result(payload: dict) -> None:
+    print(json.dumps(payload, indent=2))
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="zephyr")
     subparsers = parser.add_subparsers(dest="command")
 
     validate_parser = subparsers.add_parser("validate", help="Validate an architecture YAML file")
     validate_parser.add_argument("file")
+    validate_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output validation result as a stable JSON envelope",
+    )
 
     summary_parser = subparsers.add_parser("summary", help="Show a text summary for an architecture")
     summary_parser.add_argument("file")
@@ -300,7 +342,34 @@ def main() -> None:
 
     try:
         if args.command == "validate":
-            result = load_validation_result(args.file)
+            try:
+                result = load_validation_result(args.file)
+            except ValidationError as error:
+                if args.json:
+                    _print_json_result(
+                        _result_envelope(
+                            command="validate",
+                            source=args.file,
+                            status="error",
+                            errors=error.errors,
+                            data={"valid": False},
+                        )
+                    )
+                    raise SystemExit(1) from error
+                raise
+
+            if args.json:
+                _print_json_result(
+                    _result_envelope(
+                        command="validate",
+                        source=args.file,
+                        status="warning" if result.warnings else "ok",
+                        warnings=result.warnings,
+                        data=_validation_data(result),
+                    )
+                )
+                return
+
             if result.warnings:
                 print(f"Validation passed with warnings: {result.architecture.name}")
             else:

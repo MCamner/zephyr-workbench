@@ -22,6 +22,8 @@ Next:    v0.3.1 — stabilize architecture intelligence contracts for mq-mcp and
 
 Focus on machine-readable outputs, safe tool boundaries, and validation-first execution before adding broader review automation.
 
+Current slice shipped: `validate --json` returns `zephyr-result.v1` envelopes for ok, warning, and error cases.
+
 ---
 
 ## v0.1.1 — Validation Stabilization
@@ -76,11 +78,11 @@ Introduce architecture cognition and semantic analysis.
 Make Zephyr easier to call safely from mq-mcp, agents, scripts, and local automation.
 
 - [ ] Normalize JSON result envelopes across validation, summary, diagram, diff, and search
-- [ ] Add explicit status, errors, warnings, artifacts, and metadata fields to machine-readable output
+- [x] Add explicit status, errors, warnings, artifacts, and metadata fields to `validate --json` output
 - [ ] Ensure CLI output can be consumed without parsing human-oriented terminal text
 - [ ] Document read-only tool contracts for architecture inspection
 - [ ] Define write-safe contracts for YAML suggestions and generated artifacts
-- [ ] Add contract tests for representative valid, warning, and error cases
+- [x] Add contract tests for representative valid, warning, and error validation cases
 - [ ] Keep human CLI output stable while improving structured output
 
 ### mq-mcp Integration

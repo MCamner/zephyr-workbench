@@ -78,7 +78,7 @@ Built for real-world architecture where **identity, endpoints, and trust boundar
 | Command | What it does |
 | ------- | ------------ |
 | `zephyr run <file>` | Validate + summary + diagram in one step |
-| `zephyr validate <file>` | Check for errors and warnings |
+| `zephyr validate <file>` | Check for errors and warnings (`--json` for result envelope) |
 | `zephyr summary <file>` | Print structured summary (`--json` for machine output) |
 | `zephyr diagram <file>` | Generate diagram (`--format mermaid\|html\|png`) |
 | `zephyr diff <a> <b>` | Compare two models, exits 1 if changes exist |
@@ -94,6 +94,7 @@ Built for real-world architecture where **identity, endpoints, and trust boundar
 ```bash
 zephyr run <file> --format html --open      # open diagram in browser immediately
 zephyr run <file> --format html --watch     # live-reload on file changes
+zephyr validate <file> --json              # stable result envelope
 zephyr summary <file> --json               # machine-readable output
 zephyr diagram <file> --format png         # PNG export (requires mmdc)
 ```
@@ -217,7 +218,7 @@ zephyr/      CLI and core logic
   reference.py   Valid field values
 examples/    Sample architectures
 schemas/     Field reference (architecture.schema.yaml)
-tests/       126 tests
+tests/       129 tests
 docs/        Case studies and assets
 ```
 

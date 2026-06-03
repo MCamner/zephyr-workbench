@@ -42,6 +42,53 @@ def test_validate_command_reports_malformed_yaml_cleanly() -> None:
     assert "Traceback" not in result.stderr
 
 
+def test_validate_command_supports_json_valid_result() -> None:
+    result = run_cli("validate", "examples/identity-flow.yaml", "--json")
+
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "ok"
+    assert payload["errors"] == []
+    assert payload["warnings"] == []
+    assert payload["data"]["valid"] is True
+    assert payload["data"]["name"] == "identity-flow"
+    assert payload["metadata"] == {
+        "command": "validate",
+        "source": "examples/identity-flow.yaml",
+        "schema_version": "zephyr-result.v1",
+    }
+
+
+def test_validate_command_supports_json_warning_result() -> None:
+    result = run_cli("validate", "examples/macos-intune-windows-domain.yaml", "--json")
+
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "warning"
+    assert payload["errors"] == []
+    assert payload["warnings"] == ["component 'windows-domain' has no flows (orphaned)"]
+    assert payload["data"]["valid"] is True
+    assert payload["data"]["name"] == "macos-intune-windows-domain"
+    assert payload["metadata"]["schema_version"] == "zephyr-result.v1"
+
+
+def test_validate_command_supports_json_error_result() -> None:
+    result = run_cli("validate", "tests/fixtures/invalid/missing-name.yaml", "--json")
+
+    assert result.returncode == 1
+    assert result.stderr == ""
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "error"
+    assert "missing required top-level field: name" in payload["errors"]
+    assert payload["warnings"] == []
+    assert payload["data"] == {"valid": False}
+    assert payload["metadata"] == {
+        "command": "validate",
+        "source": "tests/fixtures/invalid/missing-name.yaml",
+        "schema_version": "zephyr-result.v1",
+    }
+
+
 def test_diagram_command_renders_mermaid_for_valid_input() -> None:
     result = run_cli("diagram", "examples/identity-flow.yaml", "--format", "mermaid")
 
