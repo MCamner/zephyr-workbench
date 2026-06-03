@@ -263,7 +263,7 @@ def test_help_command_prints_usage_guide() -> None:
     assert "Commands" in result.stdout
     assert "Model structure" in result.stdout
     assert "Tips" in result.stdout
-    for cmd in ("run", "validate", "summary", "diagram", "diff", "init", "templates", "reference"):
+    for cmd in ("run", "validate", "summary", "diagram", "diff", "init", "templates", "reference", "analyze", "review", "explain"):
         assert cmd in result.stdout
 
 

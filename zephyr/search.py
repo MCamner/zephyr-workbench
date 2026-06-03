@@ -8,7 +8,7 @@ from zephyr.models import Architecture
 
 @dataclass
 class _Filter:
-    kind: Literal["eq", "missing"]
+    kind: Literal["eq", "missing", "has"]
     field: str
     value: str = ""
 
@@ -19,8 +19,11 @@ def _parse_filters(query: str) -> list[_Filter]:
         part = part.strip()
         if not part:
             continue
-        if part.startswith("missing="):
-            filters.append(_Filter(kind="missing", field=part[len("missing="):].strip()))
+        if part.startswith("missing=") or part.startswith("no:"):
+            field = part[len("missing="):] if part.startswith("missing=") else part[len("no:"):]
+            filters.append(_Filter(kind="missing", field=field.strip()))
+        elif part.startswith("has:"):
+            filters.append(_Filter(kind="has", field=part[len("has:"):].strip()))
         elif "=" in part:
             field, value = part.split("=", 1)
             filters.append(_Filter(kind="eq", field=field.strip(), value=value.strip()))
@@ -31,6 +34,9 @@ def _matches(item_dict: dict, filters: list[_Filter]) -> bool:
     for f in filters:
         if f.kind == "missing":
             if item_dict.get(f.field):
+                return False
+        elif f.kind == "has":
+            if not item_dict.get(f.field):
                 return False
         else:
             val = str(item_dict.get(f.field, "")).lower()

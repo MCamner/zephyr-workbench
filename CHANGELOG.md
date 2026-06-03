@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.2] — 2026-06-03
+
+- `zephyr/intelligence.py`: architecture intelligence engine — `detect_antipatterns` (7 patterns: external bypass, unused IdP, uncontrolled critical component, monozone, incomplete risk definition, high blast radius, isolated security control), `suggest_improvements`, `analyze_risks`, `explain_risk`, `dependency_insights`, `narrative_summary`, `review_architecture`, `analyze_architecture`
+- `zephyr analyze <file> [--json]`: full intelligence analysis — narrative, anti-patterns, suggestions, dependency insights, risk distribution
+- `zephyr review <file> [--json]`: all findings in severity order (risk → warning → suggestion → note)
+- `zephyr explain <file> <risk-id> [--json]`: contextual risk explanation with affected components and flows
+- `zephyr search` enhanced: `has:field` (non-empty) and `no:field` (empty, alias for `missing=`) query syntax
+- `runtime.py`: `analyze_model`, `review_model`, `explain_risk_model` added to Python API
+- 38 new intelligence tests; full suite at 200 tests
+
 ## [0.3.1] — 2026-06-03
 
 - `zephyr-result.v1` JSON envelope normalized across all commands: `validate`, `summary`, `diagram`, `diff`, `search` — all support `--json` and return consistent `status / errors / warnings / data / artifacts / metadata` shape

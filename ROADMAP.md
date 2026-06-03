@@ -17,8 +17,8 @@ The long-term goal is to support:
 
 ## Current Focus
 
-Current: v0.3.1 — MCP runtime contracts shipped.
-Next:    mq-mcp Zephyr adapter — wire runtime.py into mq-mcp tool gateway.
+Current: v0.3.0 + v0.3.1 — Architecture intelligence and MCP runtime contracts shipped.
+Next:    v0.4.0 — Diagram Intelligence, or mq-mcp Zephyr adapter.
 
 Focus on machine-readable outputs, safe tool boundaries, and validation-first execution before adding broader review automation.
 
@@ -54,16 +54,16 @@ Current slice shipped: `zephyr-result.v1` envelope across all commands, Python r
 
 Introduce architecture cognition and semantic analysis.
 
-- [ ] Semantic architecture search
-- [ ] Architecture summarization
-- [ ] Architecture drift detection
-- [ ] Architecture comparison
-- [ ] Dependency reasoning
-- [ ] Architecture risk analysis
-- [ ] AI-assisted architecture reviews
-- [ ] YAML improvement suggestions
-- [ ] Risk explanation workflows
-- [ ] Architecture anti-pattern detection
+- [x] Semantic architecture search (`has:field`, `no:field` query syntax added to `zephyr search`)
+- [x] Architecture summarization (`narrative_summary()` — prose architectural assessment)
+- [x] Architecture drift detection (dependency insights: external reach, blast radius, isolated components)
+- [x] Architecture comparison (`diff_models` + semantic impact via `analyze_architecture`)
+- [x] Dependency reasoning (`dependency_insights()` — hub components, external reachable sets)
+- [x] Architecture risk analysis (`analyze_risks()` — distribution, unmitigated, incomplete definitions)
+- [x] AI-assisted architecture reviews (`review_architecture()` — rule-based findings in severity order)
+- [x] YAML improvement suggestions (`suggest_improvements()` — actionable, prioritized)
+- [x] Risk explanation workflows (`explain_risk()` — contextual risk explanation with affected components)
+- [x] Architecture anti-pattern detection (`detect_antipatterns()` — 7-pattern library)
 
 ---
 

@@ -22,6 +22,13 @@ from pathlib import Path
 from zephyr.analyzer import summarize_architecture_data
 from zephyr.diff import ArchitectureDiff, Change, diff_architectures
 from zephyr.diagram import to_html, to_mermaid
+from zephyr.intelligence import (
+    ArchitectureAnalysis,
+    RiskContext,
+    analyze_architecture,
+    explain_risk,
+    review_architecture,
+)
 from zephyr.loader import ValidationError, architecture_from_data, load_architecture_data
 from zephyr.result import ZephyrResult
 from zephyr.search import search_architecture_data
@@ -208,6 +215,132 @@ def diff_models(
         command="diff",
         source=a,
         data=_diff_to_dict(diff),
+    )
+
+
+def analyze_model(path: str | Path) -> ZephyrResult:
+    """Run full architecture intelligence analysis.
+
+    Read-only. Returns anti-patterns, suggestions, risk analysis,
+    dependency insights, and a narrative summary.
+    status="warning" when blocking risk-level findings exist.
+    """
+    p = str(path)
+    try:
+        _, arch, _ = _load(p)
+    except ValidationError as exc:
+        return ZephyrResult(
+            status="error",
+            command="analyze",
+            source=p,
+            errors=exc.errors,
+        )
+    analysis = analyze_architecture(arch)
+    return ZephyrResult(
+        status="warning" if analysis.has_blocking() else "ok",
+        command="analyze",
+        source=p,
+        data={
+            "narrative": analysis.narrative,
+            "antipatterns": [
+                {"severity": f.severity, "code": f.code,
+                 "message": f.message, "affected": f.affected}
+                for f in analysis.antipatterns
+            ],
+            "suggestions": [
+                {"severity": f.severity, "code": f.code,
+                 "message": f.message, "affected": f.affected}
+                for f in analysis.suggestions
+            ],
+            "risk_analysis": analysis.risk_analysis,
+            "dependency_insights": {
+                "external_reachable": analysis.dependency_insights.external_reachable,
+                "hub_components": [
+                    {"name": n, "degree": d}
+                    for n, d in analysis.dependency_insights.hub_components
+                ],
+                "isolated_components": analysis.dependency_insights.isolated_components,
+            },
+        },
+    )
+
+
+def review_model(path: str | Path) -> ZephyrResult:
+    """Return all architecture review findings in severity order.
+
+    Read-only. Combines anti-patterns and improvement suggestions.
+    status="warning" when risk-level findings exist.
+    data["counts"] gives per-severity breakdown.
+    """
+    p = str(path)
+    try:
+        _, arch, _ = _load(p)
+    except ValidationError as exc:
+        return ZephyrResult(
+            status="error",
+            command="review",
+            source=p,
+            errors=exc.errors,
+        )
+    findings = review_architecture(arch)
+    return ZephyrResult(
+        status="warning" if any(f.severity == "risk" for f in findings) else "ok",
+        command="review",
+        source=p,
+        data={
+            "findings": [
+                {"severity": f.severity, "code": f.code,
+                 "message": f.message, "affected": f.affected}
+                for f in findings
+            ],
+            "counts": {
+                sev: sum(1 for f in findings if f.severity == sev)
+                for sev in ("risk", "warning", "suggestion", "note")
+            },
+        },
+    )
+
+
+def explain_risk_model(path: str | Path, risk_id: str) -> ZephyrResult:
+    """Explain a specific risk in its architectural context.
+
+    Read-only. Returns severity, likelihood, impact, mitigation status,
+    affected components, and relevant flows.
+    status="error" if the risk_id is not found.
+    """
+    p = str(path)
+    try:
+        _, arch, _ = _load(p)
+    except ValidationError as exc:
+        return ZephyrResult(
+            status="error",
+            command="explain",
+            source=p,
+            errors=exc.errors,
+        )
+    ctx = explain_risk(arch, risk_id)
+    if ctx is None:
+        return ZephyrResult(
+            status="error",
+            command="explain",
+            source=p,
+            errors=[f"risk '{risk_id}' not found"],
+        )
+    return ZephyrResult(
+        status="ok",
+        command="explain",
+        source=p,
+        data={
+            "risk_id": ctx.risk_id,
+            "title": ctx.title,
+            "severity": ctx.severity,
+            "likelihood": ctx.likelihood,
+            "impact": ctx.impact,
+            "mitigation": ctx.mitigation,
+            "affected_components": ctx.affected_components,
+            "affected_flows": ctx.affected_flows,
+            "explanation": ctx.explanation,
+        },
     )
 
 

@@ -10,6 +10,14 @@ from pathlib import Path
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
 from zephyr.add import run_add
+from zephyr.intelligence import (
+    analyze_architecture,
+    explain_risk,
+    format_analysis,
+    format_review,
+    format_risk_context,
+    review_architecture,
+)
 from zephyr.search import search_architecture, search_architecture_data
 from zephyr.analyzer import load_architecture, summarize_architecture, summarize_architecture_data
 from zephyr.diagram import to_html, to_mermaid
@@ -72,7 +80,23 @@ Commands
     Filter components, flows, risks, controls, and stakeholders by field value.
     • type=endpoint           match a specific field value
     • missing=mitigation      items where the field is empty
+    • no:mitigation           alias for missing=
+    • has:description         items where the field is non-empty
     • severity=high,missing=mitigation   comma-separate to AND multiple filters
+
+  analyze <file>
+    Full intelligence analysis: narrative, anti-patterns, suggestions, dependency
+    insights, and risk distribution.
+    • --json    output as machine-readable JSON envelope
+
+  review <file>
+    Architecture review: all findings (anti-patterns + suggestions) in severity order.
+    • --json    output as machine-readable JSON envelope
+
+  explain <file> <risk-id>
+    Explain a specific risk in architectural context: affected components, flows,
+    mitigation status.
+    • --json    output as machine-readable JSON envelope
 
   reference
     Show all valid values for every enum field (type, criticality, auth...).
@@ -222,6 +246,31 @@ def _build_parser() -> argparse.ArgumentParser:
         "--json",
         action="store_true",
         help="Output result as a stable JSON envelope",
+    )
+
+    analyze_parser = subparsers.add_parser(
+        "analyze", help="Full intelligence analysis: anti-patterns, risks, dependencies"
+    )
+    analyze_parser.add_argument("file")
+    analyze_parser.add_argument(
+        "--json", action="store_true", help="Output result as a stable JSON envelope"
+    )
+
+    review_parser = subparsers.add_parser(
+        "review", help="Architecture review: all findings in severity order"
+    )
+    review_parser.add_argument("file")
+    review_parser.add_argument(
+        "--json", action="store_true", help="Output result as a stable JSON envelope"
+    )
+
+    explain_parser = subparsers.add_parser(
+        "explain", help="Explain a specific risk in architectural context"
+    )
+    explain_parser.add_argument("file")
+    explain_parser.add_argument("risk_id", metavar="RISK_ID")
+    explain_parser.add_argument(
+        "--json", action="store_true", help="Output result as a stable JSON envelope"
     )
 
     subparsers.add_parser("reference", help="Show all valid field values")
@@ -524,6 +573,99 @@ def main() -> None:
                 )
             else:
                 print(search_architecture(architecture, args.query))
+            return
+
+        if args.command == "analyze":
+            architecture = load_architecture(args.file)
+            analysis = analyze_architecture(architecture)
+            if args.json:
+                from dataclasses import asdict
+                _print_json_result(
+                    _result_envelope(
+                        command="analyze",
+                        source=args.file,
+                        status="warning" if analysis.has_blocking() else "ok",
+                        data={
+                            "narrative": analysis.narrative,
+                            "antipatterns": [
+                                {"severity": f.severity, "code": f.code,
+                                 "message": f.message, "affected": f.affected}
+                                for f in analysis.antipatterns
+                            ],
+                            "suggestions": [
+                                {"severity": f.severity, "code": f.code,
+                                 "message": f.message, "affected": f.affected}
+                                for f in analysis.suggestions
+                            ],
+                            "risk_analysis": analysis.risk_analysis,
+                            "dependency_insights": {
+                                "external_reachable": analysis.dependency_insights.external_reachable,
+                                "hub_components": [
+                                    {"name": n, "degree": d}
+                                    for n, d in analysis.dependency_insights.hub_components
+                                ],
+                                "isolated_components": analysis.dependency_insights.isolated_components,
+                            },
+                        },
+                    )
+                )
+            else:
+                print(format_analysis(analysis, architecture.name))
+            return
+
+        if args.command == "review":
+            architecture = load_architecture(args.file)
+            findings = review_architecture(architecture)
+            if args.json:
+                _print_json_result(
+                    _result_envelope(
+                        command="review",
+                        source=args.file,
+                        status="warning" if any(f.severity == "risk" for f in findings) else "ok",
+                        data={
+                            "findings": [
+                                {"severity": f.severity, "code": f.code,
+                                 "message": f.message, "affected": f.affected}
+                                for f in findings
+                            ],
+                            "counts": {
+                                sev: sum(1 for f in findings if f.severity == sev)
+                                for sev in ("risk", "warning", "suggestion", "note")
+                            },
+                        },
+                    )
+                )
+            else:
+                print(format_review(findings, architecture.name))
+            return
+
+        if args.command == "explain":
+            architecture = load_architecture(args.file)
+            ctx = explain_risk(architecture, args.risk_id)
+            if ctx is None:
+                print(f"Risk '{args.risk_id}' not found in {args.file}", file=sys.stderr)
+                raise SystemExit(1)
+            if args.json:
+                _print_json_result(
+                    _result_envelope(
+                        command="explain",
+                        source=args.file,
+                        status="ok",
+                        data={
+                            "risk_id": ctx.risk_id,
+                            "title": ctx.title,
+                            "severity": ctx.severity,
+                            "likelihood": ctx.likelihood,
+                            "impact": ctx.impact,
+                            "mitigation": ctx.mitigation,
+                            "affected_components": ctx.affected_components,
+                            "affected_flows": ctx.affected_flows,
+                            "explanation": ctx.explanation,
+                        },
+                    )
+                )
+            else:
+                print(format_risk_context(ctx))
             return
 
         if args.command == "reference":
