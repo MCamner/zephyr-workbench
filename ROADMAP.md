@@ -17,8 +17,8 @@ The long-term goal is to support:
 
 ## Current Focus
 
-Current: v0.4.0 — Diagram Intelligence shipped.
-Next:    v0.5.0 — Image-to-architecture workflows and broader visual architecture ingestion.
+Current: v0.5.0 — Architecture review platform, OCR pipelines, and component detection from diagrams.
+Next:    v0.6.0 — AI-assisted architecture generation and visual intelligence synthesis.
 
 Focus on machine-readable outputs, safe tool boundaries, and validation-first execution before adding broader review automation.
 
@@ -96,11 +96,9 @@ Expose Zephyr as a safe tool runtime for agents and local MCP clients.
 
 Bridge visual architecture and structured architecture models.
 
-- [ ] Mermaid reverse parsing
-- [ ] draw.io import experiments
-- [ ] Image-to-architecture workflows
-- [ ] Architecture OCR pipelines
-- [ ] Component detection from diagrams
+- [x] Mermaid reverse parsing
+- [x] draw.io import experiments
+- [x] Image-to-architecture workflows
 
 ### mq-image-analyze Integration
 
@@ -120,6 +118,8 @@ Mermaid / HTML / report output
 
 ## v0.5.0 — Architecture Review Platform
 
+- [ ] Architecture OCR pipelines
+- [ ] Component detection from diagrams
 - [ ] Architecture scoring
 - [ ] Review templates
 - [ ] Architecture review reports

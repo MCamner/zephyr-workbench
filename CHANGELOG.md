@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.5.0] — 2026-06-03
+
+- Prepare `v0.5.0` release: bump project metadata to `0.5.0` and update roadmap focus to image-to-architecture workflows
+
 ## [0.4.0] — 2026-06-03
 
 - `zephyr/diagram_import.py`: parse Mermaid diagrams and draw.io XML into Zephyr architecture YAML
