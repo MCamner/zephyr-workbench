@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0] — 2026-06-03
+
+- `zephyr/diagram_import.py`: parse Mermaid diagrams and draw.io XML into Zephyr architecture YAML
+- `zephyr import <file> [--format auto|mermaid|drawio]`: import diagrams into a Zephyr YAML model
+- `zephyr/runtime.py`: `import_diagram_model()` stable Python API for diagram import
+- `tests/test_diagram_import.py`: Mermaid and draw.io parser coverage, YAML generation, and round-trip consistency
+- `ROADMAP.md`, `CHANGELOG.md`, `VERSION`, and `pyproject.toml` updated to v0.4.0
+
 ## [0.3.2] — 2026-06-03
 
 - `zephyr/intelligence.py`: architecture intelligence engine — `detect_antipatterns` (7 patterns: external bypass, unused IdP, uncontrolled critical component, monozone, incomplete risk definition, high blast radius, isolated security control), `suggest_improvements`, `analyze_risks`, `explain_risk`, `dependency_insights`, `narrative_summary`, `review_architecture`, `analyze_architecture`

@@ -15,6 +15,7 @@ from zephyr.result import SCHEMA_VERSION, ZephyrResult
 from zephyr.runtime import (
     diff_models,
     diagram_model,
+    import_diagram_model,
     search_model,
     summary_model,
     validate_model,
@@ -165,6 +166,36 @@ def test_diagram_model_error_on_invalid_model() -> None:
     result = diagram_model("tests/fixtures/invalid/missing-name.yaml", format="mermaid")
     assert result.status == "error"
 
+def test_import_diagram_model_mermaid_stdout() -> None:
+    mmd = "graph TD\n    A[Node A (application)]\n    B[Node B (endpoint)]\n    A -->|HTTPS| B\n"
+    import tempfile
+    from pathlib import Path
+
+    with tempfile.NamedTemporaryFile(suffix=".mmd", mode="w", delete=False, encoding="utf-8") as tmp:
+        tmp.write(mmd)
+        tmp_path = Path(tmp.name)
+
+    result = import_diagram_model(tmp_path, format="mermaid")
+    assert result.status == "ok"
+    assert result.data["format"] == "mermaid"
+    assert result.data["component_count"] == 2
+    assert result.data["flow_count"] == 1
+    assert result.artifacts[0]["format"] == "zephyr"
+    assert "content" in result.artifacts[0]
+
+
+def test_import_diagram_model_writes_file(tmp_path: Path) -> None:
+    mmd = "graph TD\n    A[Node A (application)]\n    B[Node B (endpoint)]\n    A --> B\n"
+    src = tmp_path / "diagram.mmd"
+    src.write_text(mmd, encoding="utf-8")
+    out = tmp_path / "output.yaml"
+
+    result = import_diagram_model(src, format="mermaid", output=out)
+    assert result.status == "ok"
+    assert result.artifacts[0]["path"] == str(out)
+    assert out.exists()
+    yaml_text = out.read_text(encoding="utf-8")
+    assert "name:" in yaml_text
 
 # ── diff_models ───────────────────────────────────────────────────────────────
 

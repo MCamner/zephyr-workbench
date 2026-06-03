@@ -17,8 +17,8 @@ The long-term goal is to support:
 
 ## Current Focus
 
-Current: v0.3.0 + v0.3.1 — Architecture intelligence and MCP runtime contracts shipped.
-Next:    v0.4.0 — Diagram Intelligence, or mq-mcp Zephyr adapter.
+Current: v0.4.0 — Diagram Intelligence shipped.
+Next:    v0.5.0 — Image-to-architecture workflows and broader visual architecture ingestion.
 
 Focus on machine-readable outputs, safe tool boundaries, and validation-first execution before adding broader review automation.
 

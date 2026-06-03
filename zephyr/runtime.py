@@ -344,6 +344,61 @@ def explain_risk_model(path: str | Path, risk_id: str) -> ZephyrResult:
     )
 
 
+def import_diagram_model(
+    path: str | Path,
+    format: str | None = None,
+    output: str | Path | None = None,
+) -> ZephyrResult:
+    """Import a diagram file into a Zephyr YAML data structure.
+
+    Read-only when output is None (YAML content returned in artifact).
+    Write-creating when output is a path (writes exactly one file).
+    Supported formats: 'mermaid', 'drawio'. Auto-detected from extension when None.
+
+    data keys: format, name, component_count, flow_count, trust_boundary_count
+    artifacts[0]: type='yaml', format='zephyr', content=<yaml> or path=<path>
+    """
+    from zephyr.diagram_import import detect_format, parse_diagram
+
+    p = str(path)
+    try:
+        text = Path(path).read_text(encoding="utf-8")
+    except OSError as exc:
+        return ZephyrResult(
+            status="error",
+            command="import",
+            source=p,
+            errors=[str(exc)],
+        )
+
+    fmt = format or detect_format(path)
+    result = parse_diagram(text, fmt)
+    yaml_str = result.to_yaml_string()
+
+    if output is not None:
+        out = Path(output)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(yaml_str, encoding="utf-8")
+        artifact: dict = {"type": "yaml", "format": "zephyr", "path": str(out)}
+    else:
+        artifact = {"type": "yaml", "format": "zephyr", "content": yaml_str}
+
+    return ZephyrResult(
+        status="warning" if result.warnings else "ok",
+        command="import",
+        source=p,
+        warnings=result.warnings,
+        data={
+            "format": fmt,
+            "name": result.name,
+            "component_count": len(result.components),
+            "flow_count": len(result.flows),
+            "trust_boundary_count": len(result.trust_boundaries),
+        },
+        artifacts=[artifact],
+    )
+
+
 def search_model(path: str | Path, query: str) -> ZephyrResult:
     """Filter components, flows, risks, controls, and stakeholders by field value.
 

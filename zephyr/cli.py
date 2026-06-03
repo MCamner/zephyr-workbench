@@ -76,6 +76,13 @@ Commands
   templates
     List available starter templates with descriptions.
 
+  import <file>
+    Import a diagram file (Mermaid or draw.io) and generate a Zephyr YAML model.
+    • --format auto|mermaid|drawio   format (default: auto-detect from extension)
+    • --output <path>                write YAML to file instead of stdout
+    • --validate                     validate the generated model after import
+    • --json                         output as machine-readable JSON envelope
+
   search <file> <query>
     Filter components, flows, risks, controls, and stakeholders by field value.
     • type=endpoint           match a specific field value
@@ -281,6 +288,34 @@ def _build_parser() -> argparse.ArgumentParser:
     diff_parser.add_argument("file_a", metavar="FILE_A")
     diff_parser.add_argument("file_b", metavar="FILE_B")
     diff_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output result as a stable JSON envelope",
+    )
+
+    import_parser = subparsers.add_parser(
+        "import", help="Import a diagram into a Zephyr architecture YAML"
+    )
+    import_parser.add_argument(
+        "file",
+        help="Diagram file to import (.mmd for Mermaid, .xml/.drawio for draw.io)",
+    )
+    import_parser.add_argument(
+        "--format",
+        choices=["auto", "mermaid", "drawio"],
+        default="auto",
+        help="Diagram format (default: auto-detect from file extension)",
+    )
+    import_parser.add_argument(
+        "--output",
+        help="Write resulting YAML to this path instead of stdout",
+    )
+    import_parser.add_argument(
+        "--validate",
+        action="store_true",
+        help="Validate the generated YAML after import",
+    )
+    import_parser.add_argument(
         "--json",
         action="store_true",
         help="Output result as a stable JSON envelope",
@@ -555,6 +590,77 @@ def main() -> None:
                     print("\nStopped.")
             elif args.open:
                 _open_in_browser(diagram_path)
+            return
+
+        if args.command == "import":
+            from zephyr.diagram_import import detect_format, parse_diagram
+            import yaml as _yaml
+
+            src = Path(args.file)
+            if not src.exists():
+                print(f"File not found: {args.file}", file=sys.stderr)
+                raise SystemExit(1)
+
+            fmt = args.format if args.format != "auto" else detect_format(args.file)
+            result = parse_diagram(src.read_text(encoding="utf-8"), fmt)
+            yaml_str = result.to_yaml_string()
+
+            val_errors: list[str] = []
+            val_warnings: list[str] = []
+            if args.validate:
+                from zephyr.validation import validate_architecture_data, collect_validation_warnings
+                try:
+                    data = _yaml.safe_load(yaml_str)
+                    validate_architecture_data(data)
+                    val_warnings = collect_validation_warnings(data)
+                except ValidationError as ve:
+                    val_errors = ve.errors
+
+            all_warnings = result.warnings + val_warnings
+            status = "error" if val_errors else ("warning" if all_warnings else "ok")
+
+            if args.json:
+                artifact: dict = (
+                    {"type": "yaml", "format": "zephyr", "path": args.output}
+                    if args.output
+                    else {"type": "yaml", "format": "zephyr", "content": yaml_str}
+                )
+                if args.output:
+                    _write_text_output(yaml_str, args.output)
+                _print_json_result(
+                    _result_envelope(
+                        command="import",
+                        source=args.file,
+                        status=status,
+                        errors=val_errors,
+                        warnings=all_warnings,
+                        data={
+                            "format": fmt,
+                            "name": result.name,
+                            "component_count": len(result.components),
+                            "flow_count": len(result.flows),
+                            "trust_boundary_count": len(result.trust_boundaries),
+                        },
+                        artifacts=[artifact],
+                    )
+                )
+            else:
+                if args.output:
+                    _write_text_output(yaml_str, args.output)
+                    print(f"Imported: {result.name} → {args.output}")
+                    print(
+                        f"  {len(result.components)} component(s), "
+                        f"{len(result.flows)} flow(s), "
+                        f"{len(result.trust_boundaries)} trust boundary/ies"
+                    )
+                    if all_warnings:
+                        _print_warnings(all_warnings)
+                    if val_errors:
+                        print("Validation errors:", file=sys.stderr)
+                        for e in val_errors:
+                            print(f"  - {e}", file=sys.stderr)
+                else:
+                    print(yaml_str)
             return
 
         if args.command == "add":

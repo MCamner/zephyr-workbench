@@ -139,6 +139,39 @@ def test_diagram_command_supports_json_with_output_file(tmp_path: Path) -> None:
     assert Path(out).exists()
 
 
+def test_import_command_mermaid_stdout(tmp_path: Path) -> None:
+    src = tmp_path / "diagram.mmd"
+    src.write_text(
+        "graph TD\n    A[Node A (application)]\n    B[Node B (endpoint)]\n    A -->|HTTPS| B\n",
+        encoding="utf-8",
+    )
+
+    result = run_cli("import", str(src))
+    assert result.returncode == 0
+    assert "name:" in result.stdout
+    assert "components:" in result.stdout
+    assert "flows:" in result.stdout
+    assert "Node A" in result.stdout
+    assert "Node B" in result.stdout
+
+
+def test_import_command_supports_json_output(tmp_path: Path) -> None:
+    src = tmp_path / "diagram.mmd"
+    src.write_text(
+        "graph TD\n    A[Node A (application)]\n    B[Node B (endpoint)]\n    A -->|HTTPS| B\n",
+        encoding="utf-8",
+    )
+
+    result = run_cli("import", str(src), "--json")
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "ok"
+    assert payload["data"]["format"] == "mermaid"
+    assert payload["data"]["component_count"] == 2
+    assert payload["data"]["flow_count"] == 1
+    assert payload["artifacts"][0]["format"] == "zephyr"
+
+
 def test_diff_command_supports_json_identical_files() -> None:
     result = run_cli(
         "diff", "examples/identity-flow.yaml", "examples/identity-flow.yaml", "--json"
@@ -263,7 +296,7 @@ def test_help_command_prints_usage_guide() -> None:
     assert "Commands" in result.stdout
     assert "Model structure" in result.stdout
     assert "Tips" in result.stdout
-    for cmd in ("run", "validate", "summary", "diagram", "diff", "init", "templates", "reference", "analyze", "review", "explain"):
+    for cmd in ("run", "validate", "summary", "diagram", "diff", "import", "init", "templates", "reference", "analyze", "review", "explain"):
         assert cmd in result.stdout
 
 
