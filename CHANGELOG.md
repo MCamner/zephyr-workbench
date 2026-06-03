@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.1] — 2026-06-03
+
+- `zephyr-result.v1` JSON envelope normalized across all commands: `validate`, `summary`, `diagram`, `diff`, `search` — all support `--json` and return consistent `status / errors / warnings / data / artifacts / metadata` shape
+- `zephyr/result.py`: `ZephyrResult` dataclass — Python type for the envelope with `.ok`, `.failed`, `.to_dict()`
+- `zephyr/runtime.py`: stable Python API — `validate_model`, `summary_model`, `diagram_model`, `diff_models`, `search_model` — returns `ZephyrResult`, no subprocess required
+- `zephyr/contracts.py`: `ToolContract` registry classifying each tool as `read-only`, `write-creating`, or `forbidden`; `is_safe_for_agents()` and `requires_write_intent()` helpers
+- `docs/tool-contracts.md`: reference documentation for all JSON envelopes, read-only vs write-creating tools, safe call pattern, and enum values
+- 27 new contract tests covering `ZephyrResult`, all runtime functions, error paths, and the contracts registry
+
 ## [0.2.0] — 2026-05-25
 
 - `TrustBoundary` model: named security zones declared at architecture level

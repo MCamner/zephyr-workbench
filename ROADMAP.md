@@ -47,12 +47,6 @@ Current slice shipped: `zephyr-result.v1` envelope across all commands, Python r
 - [x] Richer component schema (`tags`, extended fields)
 - [x] Mermaid subgraph rendering per trust boundary
 - [x] Trust boundary validation (unknown reference warnings)
-- [ ] Network topology modeling
-- [ ] IAM / identity modeling
-- [ ] Application dependency mapping
-- [ ] Endpoint and device modeling
-- [ ] Cloud provider abstractions
-- [ ] Policy validation
 
 ---
 
