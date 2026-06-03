@@ -217,7 +217,7 @@ zephyr/      CLI and core logic
   reference.py   Valid field values
 examples/    Sample architectures
 schemas/     Field reference (architecture.schema.yaml)
-tests/       88 tests
+tests/       126 tests
 docs/        Case studies and assets
 ```
 

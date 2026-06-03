@@ -17,7 +17,8 @@ The long-term goal is to support:
 
 ## Current Focus
 
-Next: v0.3.1 — stabilize architecture intelligence contracts for mq-mcp and agent workflows.
+Current: v0.2.0 — schema expansion shipped.
+Next:    v0.3.1 — stabilize architecture intelligence contracts for mq-mcp and agent workflows.
 
 Focus on machine-readable outputs, safe tool boundaries, and validation-first execution before adding broader review automation.
 
