@@ -77,23 +77,23 @@ Introduce architecture cognition and semantic analysis.
 
 Make Zephyr easier to call safely from mq-mcp, agents, scripts, and local automation.
 
-- [ ] Normalize JSON result envelopes across validation, summary, diagram, diff, and search
+- [x] Normalize JSON result envelopes across validation, summary, diagram, diff, and search
 - [x] Add explicit status, errors, warnings, artifacts, and metadata fields to `validate --json` output
-- [ ] Ensure CLI output can be consumed without parsing human-oriented terminal text
+- [x] Ensure CLI output can be consumed without parsing human-oriented terminal text
 - [ ] Document read-only tool contracts for architecture inspection
 - [ ] Define write-safe contracts for YAML suggestions and generated artifacts
 - [x] Add contract tests for representative valid, warning, and error validation cases
-- [ ] Keep human CLI output stable while improving structured output
+- [x] Keep human CLI output stable while improving structured output
 
 ### mq-mcp Integration
 
 Expose Zephyr as a safe tool runtime for agents and local MCP clients.
 
-- [ ] Stable JSON output contracts for validation, summary, diagram, diff, and search
+- [x] Stable JSON output contracts for validation, summary, diagram, diff, and search
 - [ ] Read-only MCP tools for inspecting architecture models
 - [ ] Validation-first MCP tool flow: load → validate → analyze → render
 - [ ] Explicit write controls for generated YAML suggestions
-- [ ] Tool result schemas that agents can consume without parsing terminal text
+- [x] Tool result schemas that agents can consume without parsing terminal text
 - [ ] Guardrails for risky operations: no silent model rewrites, no autonomous remediation
 
 ---

@@ -10,10 +10,10 @@ from pathlib import Path
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
 from zephyr.add import run_add
-from zephyr.search import search_architecture
+from zephyr.search import search_architecture, search_architecture_data
 from zephyr.analyzer import load_architecture, summarize_architecture, summarize_architecture_data
 from zephyr.diagram import to_html, to_mermaid
-from zephyr.diff import diff_architectures, format_diff
+from zephyr.diff import ArchitectureDiff, Change, diff_architectures, format_diff
 from zephyr.reference import build_reference
 from zephyr.templates import list_templates
 from zephyr.init_wizard import run_init_wizard
@@ -157,6 +157,28 @@ def _print_json_result(payload: dict) -> None:
     print(json.dumps(payload, indent=2))
 
 
+def _change_to_dict(change: Change) -> dict:
+    return {
+        "status": change.status,
+        "label": change.label,
+        "fields": [{"field": f, "old": old, "new": new} for f, old, new in change.fields],
+    }
+
+
+def _diff_to_dict(diff: ArchitectureDiff) -> dict:
+    return {
+        "source": diff.source,
+        "target": diff.target,
+        "changed": not diff.is_empty(),
+        "meta": _change_to_dict(diff.meta) if diff.meta else None,
+        "components": [_change_to_dict(c) for c in diff.components],
+        "flows": [_change_to_dict(f) for f in diff.flows],
+        "risks": [_change_to_dict(r) for r in diff.risks],
+        "controls": [_change_to_dict(c) for c in diff.controls],
+        "stakeholders": [_change_to_dict(s) for s in diff.stakeholders],
+    }
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="zephyr")
     subparsers = parser.add_subparsers(dest="command")
@@ -181,6 +203,11 @@ def _build_parser() -> argparse.ArgumentParser:
     diagram_parser.add_argument("file")
     diagram_parser.add_argument("--format", choices=["mermaid", "html", "png"], required=True)
     diagram_parser.add_argument("--output", help="Write diagram output to a file instead of stdout")
+    diagram_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output result as a stable JSON envelope",
+    )
 
     add_parser = subparsers.add_parser("add", help="Add items to an existing architecture model")
     add_parser.add_argument("file")
@@ -191,6 +218,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "query",
         help="Filter expression: type=endpoint, severity=high,missing=mitigation (comma-separated for AND)",
     )
+    search_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output result as a stable JSON envelope",
+    )
 
     subparsers.add_parser("reference", help="Show all valid field values")
     subparsers.add_parser("templates", help="List available starter templates")
@@ -199,6 +231,11 @@ def _build_parser() -> argparse.ArgumentParser:
     diff_parser = subparsers.add_parser("diff", help="Compare two architecture YAML files")
     diff_parser.add_argument("file_a", metavar="FILE_A")
     diff_parser.add_argument("file_b", metavar="FILE_B")
+    diff_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output result as a stable JSON envelope",
+    )
 
     init_parser = subparsers.add_parser("init", help="Create a new architecture YAML file")
     init_parser.add_argument("--output", help="Output YAML path")
@@ -380,7 +417,14 @@ def main() -> None:
         if args.command == "summary":
             architecture = load_architecture(args.file)
             if args.json:
-                print(json.dumps(summarize_architecture_data(architecture), indent=2))
+                _print_json_result(
+                    _result_envelope(
+                        command="summary",
+                        source=args.file,
+                        status="ok",
+                        data=summarize_architecture_data(architecture),
+                    )
+                )
             else:
                 print(summarize_architecture(architecture))
             return
@@ -392,10 +436,34 @@ def main() -> None:
                     _default_diagram_path(args.file, "output", "png")
                 )
                 _export_png(architecture, Path(output))
-                print(f"Diagram generated: {output}")
+                if args.json:
+                    _print_json_result(
+                        _result_envelope(
+                            command="diagram",
+                            source=args.file,
+                            status="ok",
+                            artifacts=[{"type": "diagram", "format": "png", "path": output}],
+                        )
+                    )
+                else:
+                    print(f"Diagram generated: {output}")
             else:
                 diagram = _render_diagram(architecture, args.format)
-                if args.output:
+                if args.json:
+                    if args.output:
+                        _write_text_output(diagram, args.output)
+                        artifact: dict = {"type": "diagram", "format": args.format, "path": args.output}
+                    else:
+                        artifact = {"type": "diagram", "format": args.format, "content": diagram}
+                    _print_json_result(
+                        _result_envelope(
+                            command="diagram",
+                            source=args.file,
+                            status="ok",
+                            artifacts=[artifact],
+                        )
+                    )
+                elif args.output:
                     _write_text_output(diagram, args.output)
                     print(f"Diagram generated: {args.output}")
                 else:
@@ -445,7 +513,17 @@ def main() -> None:
 
         if args.command == "search":
             architecture = load_architecture(args.file)
-            print(search_architecture(architecture, args.query))
+            if args.json:
+                _print_json_result(
+                    _result_envelope(
+                        command="search",
+                        source=args.file,
+                        status="ok",
+                        data=search_architecture_data(architecture, args.query),
+                    )
+                )
+            else:
+                print(search_architecture(architecture, args.query))
             return
 
         if args.command == "reference":
@@ -460,7 +538,17 @@ def main() -> None:
             a = load_architecture(args.file_a)
             b = load_architecture(args.file_b)
             diff = diff_architectures(a, b, source=args.file_a, target=args.file_b)
-            print(format_diff(diff))
+            if args.json:
+                _print_json_result(
+                    _result_envelope(
+                        command="diff",
+                        source=args.file_a,
+                        status="warning" if not diff.is_empty() else "ok",
+                        data=_diff_to_dict(diff),
+                    )
+                )
+            else:
+                print(format_diff(diff))
             raise SystemExit(1 if not diff.is_empty() else 0)
 
         if args.command == "init":

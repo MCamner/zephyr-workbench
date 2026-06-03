@@ -101,10 +101,116 @@ def test_summary_command_supports_json_output() -> None:
     result = run_cli("summary", "examples/secure-workplace.yaml", "--json")
 
     assert result.returncode == 0
-    data = json.loads(result.stdout)
-    assert data["name"] == "secure-workplace"
-    assert data["components"] == 7
-    assert data["risks"] == 2
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "ok"
+    assert payload["metadata"]["command"] == "summary"
+    assert payload["metadata"]["schema_version"] == "zephyr-result.v1"
+    assert payload["data"]["name"] == "secure-workplace"
+    assert payload["data"]["components"] == 7
+    assert payload["data"]["risks"] == 2
+
+
+def test_diagram_command_supports_json_mermaid_stdout() -> None:
+    result = run_cli("diagram", "examples/identity-flow.yaml", "--format", "mermaid", "--json")
+
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "ok"
+    assert payload["metadata"]["command"] == "diagram"
+    assert payload["metadata"]["schema_version"] == "zephyr-result.v1"
+    assert len(payload["artifacts"]) == 1
+    artifact = payload["artifacts"][0]
+    assert artifact["type"] == "diagram"
+    assert artifact["format"] == "mermaid"
+    assert "graph TD" in artifact["content"]
+
+
+def test_diagram_command_supports_json_with_output_file(tmp_path: Path) -> None:
+    out = str(tmp_path / "out.mmd")
+    result = run_cli("diagram", "examples/identity-flow.yaml", "--format", "mermaid", "--output", out, "--json")
+
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "ok"
+    artifact = payload["artifacts"][0]
+    assert artifact["format"] == "mermaid"
+    assert artifact["path"] == out
+    assert "content" not in artifact
+    assert Path(out).exists()
+
+
+def test_diff_command_supports_json_identical_files() -> None:
+    result = run_cli(
+        "diff", "examples/identity-flow.yaml", "examples/identity-flow.yaml", "--json"
+    )
+
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "ok"
+    assert payload["metadata"]["command"] == "diff"
+    assert payload["metadata"]["schema_version"] == "zephyr-result.v1"
+    assert payload["data"]["changed"] is False
+    assert payload["data"]["components"] == []
+    assert payload["data"]["flows"] == []
+
+
+def test_diff_command_supports_json_changed_files(tmp_path: Path) -> None:
+    base = {
+        "name": "arch-a",
+        "components": [
+            {"name": "svc", "type": "application"},
+            {"name": "db", "type": "on-prem-resource"},
+        ],
+        "flows": [{"from": "svc", "to": "db", "label": "query"}],
+    }
+    modified = {
+        "name": "arch-b",
+        "components": [
+            {"name": "svc", "type": "application"},
+            {"name": "db", "type": "on-prem-resource"},
+            {"name": "cache", "type": "on-prem-resource"},
+        ],
+        "flows": [
+            {"from": "svc", "to": "db", "label": "query"},
+            {"from": "svc", "to": "cache", "label": "read"},
+        ],
+    }
+    a_path = tmp_path / "a.yaml"
+    b_path = tmp_path / "b.yaml"
+    a_path.write_text(yaml.safe_dump(base), encoding="utf-8")
+    b_path.write_text(yaml.safe_dump(modified), encoding="utf-8")
+
+    result = run_cli("diff", str(a_path), str(b_path), "--json")
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "warning"
+    assert payload["data"]["changed"] is True
+    added = [c for c in payload["data"]["components"] if c["status"] == "added"]
+    assert any(c["label"].startswith("cache") for c in added)
+
+
+def test_search_command_supports_json_output() -> None:
+    result = run_cli("search", "examples/identity-flow.yaml", "type=endpoint", "--json")
+
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "ok"
+    assert payload["metadata"]["command"] == "search"
+    assert payload["metadata"]["schema_version"] == "zephyr-result.v1"
+    assert payload["data"]["query"] == "type=endpoint"
+    assert isinstance(payload["data"]["components"], list)
+    assert all(c["type"] == "endpoint" for c in payload["data"]["components"])
+
+
+def test_search_command_json_no_results() -> None:
+    result = run_cli("search", "examples/identity-flow.yaml", "type=nonexistent", "--json")
+
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "ok"
+    assert payload["data"]["total"] == 0
+    assert payload["data"]["components"] == []
 
 
 def test_run_command_generates_summary_and_diagram(tmp_path: Path) -> None:

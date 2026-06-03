@@ -128,3 +128,65 @@ def search_architecture(architecture: Architecture, query: str) -> str:
         return f'No results for "{query}".'
 
     return "\n".join(lines)
+
+
+def search_architecture_data(architecture: Architecture, query: str) -> dict:
+    """Return structured search results as a dict (for JSON output)."""
+    filters = _parse_filters(query.strip())
+
+    comp_hits = [
+        c for c in architecture.components
+        if _matches({"name": c.name, "type": c.type, "domain": c.domain,
+                     "criticality": c.criticality, "exposure": c.exposure,
+                     "lifecycle": c.lifecycle, "description": c.description}, filters)
+    ]
+    flow_hits = [
+        f for f in architecture.flows
+        if _matches({"from": f.source, "to": f.target, "label": f.label,
+                     "protocol": f.protocol, "authentication": f.authentication,
+                     "encryption": f.encryption, "direction": f.direction}, filters)
+    ]
+    risk_hits = [
+        r for r in architecture.risks
+        if _matches({"id": r.id, "title": r.title, "severity": r.severity,
+                     "likelihood": r.likelihood, "impact": r.impact,
+                     "mitigation": r.mitigation, "description": r.description}, filters)
+    ]
+    ctrl_hits = [
+        ctrl for ctrl in architecture.controls
+        if _matches({"name": ctrl.name, "type": ctrl.type, "description": ctrl.description}, filters)
+    ]
+    sh_hits = [
+        s for s in architecture.stakeholders
+        if _matches({"name": s.name, "role": s.role}, filters)
+    ]
+
+    total = len(comp_hits) + len(flow_hits) + len(risk_hits) + len(ctrl_hits) + len(sh_hits)
+
+    return {
+        "query": query,
+        "total": total,
+        "components": [
+            {"name": c.name, "type": c.type, "criticality": c.criticality or "",
+             "exposure": c.exposure or "", "lifecycle": c.lifecycle or ""}
+            for c in comp_hits
+        ],
+        "flows": [
+            {"from": f.source, "to": f.target, "label": f.label or "",
+             "authentication": f.authentication or "", "encryption": f.encryption or ""}
+            for f in flow_hits
+        ],
+        "risks": [
+            {"id": r.id, "title": r.title, "severity": r.severity,
+             "likelihood": r.likelihood or "", "mitigation": r.mitigation or ""}
+            for r in risk_hits
+        ],
+        "controls": [
+            {"name": ctrl.name, "type": ctrl.type, "applies_to": ctrl.applies_to}
+            for ctrl in ctrl_hits
+        ],
+        "stakeholders": [
+            {"name": s.name, "role": s.role}
+            for s in sh_hits
+        ],
+    }
