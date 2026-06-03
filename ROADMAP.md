@@ -80,8 +80,8 @@ Make Zephyr easier to call safely from mq-mcp, agents, scripts, and local automa
 - [x] Normalize JSON result envelopes across validation, summary, diagram, diff, and search
 - [x] Add explicit status, errors, warnings, artifacts, and metadata fields to `validate --json` output
 - [x] Ensure CLI output can be consumed without parsing human-oriented terminal text
-- [ ] Document read-only tool contracts for architecture inspection
-- [ ] Define write-safe contracts for YAML suggestions and generated artifacts
+- [x] Document read-only tool contracts for architecture inspection
+- [x] Define write-safe contracts for YAML suggestions and generated artifacts
 - [x] Add contract tests for representative valid, warning, and error validation cases
 - [x] Keep human CLI output stable while improving structured output
 
