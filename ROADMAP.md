@@ -22,7 +22,7 @@ Next:    mq-mcp Zephyr adapter — wire runtime.py into mq-mcp tool gateway.
 
 Focus on machine-readable outputs, safe tool boundaries, and validation-first execution before adding broader review automation.
 
-Current slice shipped: `validate --json` returns `zephyr-result.v1` envelopes for ok, warning, and error cases.
+Current slice shipped: `zephyr-result.v1` envelope across all commands, Python runtime API (`zephyr/runtime.py`), `ZephyrResult` type, tool safety contracts (`zephyr/contracts.py`), and `docs/tool-contracts.md`.
 
 ---
 
