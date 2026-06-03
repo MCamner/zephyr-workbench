@@ -602,8 +602,8 @@ def main() -> None:
                 raise SystemExit(1)
 
             fmt = args.format if args.format != "auto" else detect_format(args.file)
-            result = parse_diagram(src.read_text(encoding="utf-8"), fmt)
-            yaml_str = result.to_yaml_string()
+            diagram_result = parse_diagram(src.read_text(encoding="utf-8"), fmt)
+            yaml_str = diagram_result.to_yaml_string()
 
             val_errors: list[str] = []
             val_warnings: list[str] = []
@@ -616,11 +616,11 @@ def main() -> None:
                 except ValidationError as ve:
                     val_errors = ve.errors
 
-            all_warnings = result.warnings + val_warnings
+            all_warnings = diagram_result.warnings + val_warnings
             status = "error" if val_errors else ("warning" if all_warnings else "ok")
 
             if args.json:
-                artifact: dict = (
+                import_artifact: dict = (
                     {"type": "yaml", "format": "zephyr", "path": args.output}
                     if args.output
                     else {"type": "yaml", "format": "zephyr", "content": yaml_str}
@@ -636,22 +636,22 @@ def main() -> None:
                         warnings=all_warnings,
                         data={
                             "format": fmt,
-                            "name": result.name,
-                            "component_count": len(result.components),
-                            "flow_count": len(result.flows),
-                            "trust_boundary_count": len(result.trust_boundaries),
+                            "name": diagram_result.name,
+                            "component_count": len(diagram_result.components),
+                            "flow_count": len(diagram_result.flows),
+                            "trust_boundary_count": len(diagram_result.trust_boundaries),
                         },
-                        artifacts=[artifact],
+                        artifacts=[import_artifact],
                     )
                 )
             else:
                 if args.output:
                     _write_text_output(yaml_str, args.output)
-                    print(f"Imported: {result.name} → {args.output}")
+                    print(f"Imported: {diagram_result.name} → {args.output}")
                     print(
-                        f"  {len(result.components)} component(s), "
-                        f"{len(result.flows)} flow(s), "
-                        f"{len(result.trust_boundaries)} trust boundary/ies"
+                        f"  {len(diagram_result.components)} component(s), "
+                        f"{len(diagram_result.flows)} flow(s), "
+                        f"{len(diagram_result.trust_boundaries)} trust boundary/ies"
                     )
                     if all_warnings:
                         _print_warnings(all_warnings)
