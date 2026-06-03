@@ -10,6 +10,7 @@ from pathlib import Path
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
 from zephyr.add import run_add
+from zephyr.lifecycle import analyze_lifecycle
 from zephyr.reporter import generate_report
 from zephyr.scoring import score_architecture
 from zephyr.intelligence import (
@@ -105,6 +106,12 @@ Commands
   score <file>
     Multi-dimensional quality score: risk health, control coverage, component
     maturity, structural health, and definition completeness.
+    • --json    output as machine-readable JSON envelope
+
+  lifecycle <file>
+    Analyse component lifecycle states: distribution, deprecated components
+    still referenced in active flows, planned components not yet connected,
+    and components missing a lifecycle field.
     • --json    output as machine-readable JSON envelope
 
   report <file>
@@ -291,6 +298,14 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     score_parser.add_argument("file")
     score_parser.add_argument(
+        "--json", action="store_true", help="Output result as a stable JSON envelope"
+    )
+
+    lifecycle_parser = subparsers.add_parser(
+        "lifecycle", help="Analyse component lifecycle states and health"
+    )
+    lifecycle_parser.add_argument("file")
+    lifecycle_parser.add_argument(
         "--json", action="store_true", help="Output result as a stable JSON envelope"
     )
 
@@ -809,6 +824,45 @@ def main() -> None:
                     for name, note in issues:
                         print(f"  [{name}] {note}")
                 print("")
+            return
+
+        if args.command == "lifecycle":
+            architecture = load_architecture(args.file)
+            report = analyze_lifecycle(architecture)
+            if args.json:
+                _print_json_result(
+                    _result_envelope(
+                        command="lifecycle",
+                        source=args.file,
+                        status="warning" if report.health != "healthy" else "ok",
+                        data=report.to_dict(),
+                    )
+                )
+            else:
+                _HEALTH_ICON = {"healthy": "✓", "warning": "⚠", "critical": "✗"}
+                icon = _HEALTH_ICON.get(report.health, "?")
+                print(f"\nLifecycle: {architecture.name}  [{icon} {report.health}]")
+                print("─" * 40)
+                print("\nDistribution:")
+                for state, count in report.distribution.items():
+                    if count:
+                        print(f"  {state:<12} {count}")
+                if report.deprecated_in_use:
+                    print("\nDeprecated components still in active flows:")
+                    for d in report.deprecated_in_use:
+                        print(f"  ✗ {d.name}  ({d.flow_count} flow(s))")
+                        for f in d.flows[:4]:
+                            print(f"      {f}")
+                if report.planned_unconnected:
+                    print("\nPlanned components not yet connected:")
+                    for p in report.planned_unconnected:
+                        desc = f" — {p.description}" if p.description else ""
+                        print(f"  ○ {p.name}{desc}")
+                if report.no_lifecycle:
+                    print("\nComponents missing lifecycle field:")
+                    for name in report.no_lifecycle:
+                        print(f"  ? {name}")
+                print(f"\n{report.summary}\n")
             return
 
         if args.command == "report":

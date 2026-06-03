@@ -123,7 +123,7 @@ Mermaid / HTML / report output
 - [x] Architecture scoring
 - [ ] Review templates
 - [x] Architecture review reports
-- [ ] Architecture lifecycle tracking
+- [x] Architecture lifecycle tracking
 - [ ] Change impact analysis
 - [ ] Release architecture snapshots
 - [ ] Architecture governance workflows

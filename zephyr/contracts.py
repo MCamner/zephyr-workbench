@@ -69,6 +69,13 @@ TOOLS: dict[str, ToolContract] = {
         idempotent=True,
         json_supported=True,
     ),
+    "lifecycle": ToolContract(
+        name="lifecycle",
+        safety="read-only",
+        description="Analyse component lifecycle states. No file writes.",
+        idempotent=True,
+        json_supported=True,
+    ),
     "report_stdout": ToolContract(
         name="report_stdout",
         safety="read-only",

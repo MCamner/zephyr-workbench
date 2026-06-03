@@ -22,7 +22,8 @@ from pathlib import Path
 from zephyr.analyzer import summarize_architecture_data
 from zephyr.diff import ArchitectureDiff, Change, diff_architectures
 from zephyr.diagram import to_html, to_mermaid
-from zephyr.reporter import generate_report
+from zephyr.lifecycle import analyze_lifecycle
+from zephyr.reporter import ReportFormat, generate_report
 from zephyr.scoring import score_architecture
 from zephyr.intelligence import (
     ArchitectureAnalysis,
@@ -401,9 +402,35 @@ def import_diagram_model(
     )
 
 
+def lifecycle_model(path: str | Path) -> ZephyrResult:
+    """Analyse component lifecycle states across an architecture model.
+
+    Read-only. Returns distribution, deprecated_in_use, planned_unconnected,
+    no_lifecycle, health ("healthy" | "warning" | "critical"), and summary.
+    status="warning" when health is not "healthy".
+    """
+    p = str(path)
+    try:
+        _, arch, _ = _load(p)
+    except ValidationError as exc:
+        return ZephyrResult(
+            status="error",
+            command="lifecycle",
+            source=p,
+            errors=exc.errors,
+        )
+    report = analyze_lifecycle(arch)
+    return ZephyrResult(
+        status="warning" if report.health != "healthy" else "ok",
+        command="lifecycle",
+        source=p,
+        data=report.to_dict(),
+    )
+
+
 def report_model(
     path: str | Path,
-    format: str = "md",
+    format: ReportFormat = "md",
     output: str | Path | None = None,
 ) -> ZephyrResult:
     """Generate a comprehensive architecture review report.

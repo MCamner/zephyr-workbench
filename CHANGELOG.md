@@ -12,6 +12,11 @@
 - `zephyr/runtime.py`: `report_model()` added — returns `ZephyrResult` with report content or path artifact
 - `zephyr/contracts.py`: `report_stdout` (read-only) and `report_file` (write-creating) registered in safety contract registry
 - `tests/test_reporter.py`: 26 tests covering Markdown/HTML output, runtime API, file writing, and error handling
+- `zephyr/lifecycle.py`: `analyze_lifecycle()` — component lifecycle distribution, deprecated-in-use detection, planned-unconnected, missing-lifecycle-field, and health status (healthy / warning / critical)
+- `zephyr lifecycle <file> [--json]`: new CLI command with health icon display
+- `zephyr/runtime.py`: `lifecycle_model()` added to stable Python API
+- `zephyr/contracts.py`: `lifecycle` registered as read-only
+- `tests/test_lifecycle.py`: 29 tests; full suite at 323
 
 ## [0.4.0] — 2026-06-03
 
