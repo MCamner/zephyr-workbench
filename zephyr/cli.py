@@ -10,6 +10,8 @@ from pathlib import Path
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
 from zephyr.add import run_add
+from zephyr.reporter import generate_report
+from zephyr.scoring import score_architecture
 from zephyr.intelligence import (
     analyze_architecture,
     explain_risk,
@@ -99,6 +101,19 @@ Commands
   review <file>
     Architecture review: all findings (anti-patterns + suggestions) in severity order.
     • --json    output as machine-readable JSON envelope
+
+  score <file>
+    Multi-dimensional quality score: risk health, control coverage, component
+    maturity, structural health, and definition completeness.
+    • --json    output as machine-readable JSON envelope
+
+  report <file>
+    Generate a comprehensive architecture review report combining score,
+    narrative, risk table, findings, dependency insights, and controls.
+    • --format md       Markdown output (default)
+    • --format html     self-contained HTML page
+    • --output <path>   write to file instead of stdout
+    • --json            output as machine-readable JSON envelope
 
   explain <file> <risk-id>
     Explain a specific risk in architectural context: affected components, flows,
@@ -268,6 +283,27 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     review_parser.add_argument("file")
     review_parser.add_argument(
+        "--json", action="store_true", help="Output result as a stable JSON envelope"
+    )
+
+    score_parser = subparsers.add_parser(
+        "score", help="Multi-dimensional quality score for an architecture model"
+    )
+    score_parser.add_argument("file")
+    score_parser.add_argument(
+        "--json", action="store_true", help="Output result as a stable JSON envelope"
+    )
+
+    report_parser = subparsers.add_parser(
+        "report", help="Generate a comprehensive architecture review report"
+    )
+    report_parser.add_argument("file")
+    report_parser.add_argument(
+        "--format", choices=["md", "html"], default="md",
+        help="Report format: md (Markdown, default) or html",
+    )
+    report_parser.add_argument("--output", help="Write report to file instead of stdout")
+    report_parser.add_argument(
         "--json", action="store_true", help="Output result as a stable JSON envelope"
     )
 
@@ -743,6 +779,63 @@ def main() -> None:
                 )
             else:
                 print(format_review(findings, architecture.name))
+            return
+
+        if args.command == "score":
+            architecture = load_architecture(args.file)
+            score = score_architecture(architecture)
+            if args.json:
+                _print_json_result(
+                    _result_envelope(
+                        command="score",
+                        source=args.file,
+                        status="ok",
+                        data=score.to_dict(),
+                    )
+                )
+            else:
+                bar_width = 10
+                print(f"\nArchitecture Score: {architecture.name}")
+                print("─" * 40)
+                print(f"\n  Overall: {score.overall}/100  (Grade {score.grade})\n")
+                for d in score.dimensions:
+                    filled = round(d.score / 10)
+                    bar = "█" * filled + "░" * (bar_width - filled)
+                    print(f"  {d.name:<28} {bar}  {d.score:>3}")
+                print(f"\n{score.summary}")
+                issues = [(d.name, n) for d in score.dimensions for n in d.notes if d.score < 80]
+                if issues:
+                    print("\nNotes:")
+                    for name, note in issues:
+                        print(f"  [{name}] {note}")
+                print("")
+            return
+
+        if args.command == "report":
+            architecture = load_architecture(args.file)
+            content = generate_report(architecture, format=args.format)
+            if args.json:
+                artifact: dict = (
+                    {"type": "report", "format": args.format, "path": args.output}
+                    if args.output
+                    else {"type": "report", "format": args.format, "content": content}
+                )
+                if args.output:
+                    _write_text_output(content, args.output)
+                _print_json_result(
+                    _result_envelope(
+                        command="report",
+                        source=args.file,
+                        status="ok",
+                        data={"format": args.format, "name": architecture.name},
+                        artifacts=[artifact],
+                    )
+                )
+            elif args.output:
+                _write_text_output(content, args.output)
+                print(f"Report generated: {args.output}")
+            else:
+                print(content)
             return
 
         if args.command == "explain":

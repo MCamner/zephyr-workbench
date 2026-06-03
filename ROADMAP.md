@@ -120,9 +120,9 @@ Mermaid / HTML / report output
 
 - [ ] Architecture OCR pipelines
 - [ ] Component detection from diagrams
-- [ ] Architecture scoring
+- [x] Architecture scoring
 - [ ] Review templates
-- [ ] Architecture review reports
+- [x] Architecture review reports
 - [ ] Architecture lifecycle tracking
 - [ ] Change impact analysis
 - [ ] Release architecture snapshots

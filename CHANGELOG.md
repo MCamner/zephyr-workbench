@@ -2,7 +2,16 @@
 
 ## [0.5.0] — 2026-06-03
 
-- Prepare `v0.5.0` release: bump project metadata to `0.5.0` and update roadmap focus to image-to-architecture workflows
+- `zephyr/scoring.py`: `ArchitectureScore` datatype and `score_architecture()` — five-dimension quality scoring: risk health, control coverage, component maturity, structural health, definition completeness
+- `zephyr score <file> [--json]`: new CLI command — overall score (0–100), grade (A–F), per-dimension breakdown with notes
+- `zephyr/runtime.py`: `score_model()` added to stable Python API — returns `ZephyrResult` with `overall`, `grade`, and `dimensions`
+- `zephyr/contracts.py`: `score` tool registered as `read-only` in the tool safety contract registry
+- `tests/test_scoring.py`: 24 tests covering score shape, grade thresholds, dimension logic, serialization, and runtime API
+- `zephyr/reporter.py`: `generate_report(arch, format)` — comprehensive review reports in Markdown and HTML combining score card, narrative, risk table, findings, dependency insights, and controls
+- `zephyr report <file> [--format md|html] [--output <path>] [--json]`: new CLI command — generates full review report to stdout or file
+- `zephyr/runtime.py`: `report_model()` added — returns `ZephyrResult` with report content or path artifact
+- `zephyr/contracts.py`: `report_stdout` (read-only) and `report_file` (write-creating) registered in safety contract registry
+- `tests/test_reporter.py`: 26 tests covering Markdown/HTML output, runtime API, file writing, and error handling
 
 ## [0.4.0] — 2026-06-03
 

@@ -22,6 +22,8 @@ from pathlib import Path
 from zephyr.analyzer import summarize_architecture_data
 from zephyr.diff import ArchitectureDiff, Change, diff_architectures
 from zephyr.diagram import to_html, to_mermaid
+from zephyr.reporter import generate_report
+from zephyr.scoring import score_architecture
 from zephyr.intelligence import (
     ArchitectureAnalysis,
     RiskContext,
@@ -396,6 +398,80 @@ def import_diagram_model(
             "trust_boundary_count": len(result.trust_boundaries),
         },
         artifacts=[artifact],
+    )
+
+
+def report_model(
+    path: str | Path,
+    format: str = "md",
+    output: str | Path | None = None,
+) -> ZephyrResult:
+    """Generate a comprehensive architecture review report.
+
+    Read-only when output is None (report content in artifact).
+    Write-creating when output is a path (writes exactly one file).
+    Supported formats: "md" (Markdown), "html".
+
+    data keys: format, name
+    artifacts[0]: type='report', format=<fmt>, content=<str> or path=<str>
+    """
+    p = str(path)
+    try:
+        _, arch, _ = _load(p)
+    except ValidationError as exc:
+        return ZephyrResult(
+            status="error",
+            command="report",
+            source=p,
+            errors=exc.errors,
+        )
+    if format not in ("md", "html"):
+        return ZephyrResult(
+            status="error",
+            command="report",
+            source=p,
+            errors=[f"unsupported format '{format}'; expected md or html"],
+        )
+    content = generate_report(arch, format=format)
+    if output is not None:
+        out = Path(output)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(content, encoding="utf-8")
+        artifact: dict = {"type": "report", "format": format, "path": str(out)}
+    else:
+        artifact = {"type": "report", "format": format, "content": content}
+    return ZephyrResult(
+        status="ok",
+        command="report",
+        source=p,
+        data={"format": format, "name": arch.name},
+        artifacts=[artifact],
+    )
+
+
+def score_model(path: str | Path) -> ZephyrResult:
+    """Compute a multi-dimensional quality score for an architecture model.
+
+    Read-only. Returns overall score (0–100), grade (A–F), and per-dimension
+    breakdown: risk_health, control_coverage, component_maturity,
+    structural_health, definition_completeness.
+    """
+    p = str(path)
+    try:
+        _, arch, _ = _load(p)
+    except ValidationError as exc:
+        return ZephyrResult(
+            status="error",
+            command="score",
+            source=p,
+            errors=exc.errors,
+        )
+    score = score_architecture(arch)
+    return ZephyrResult(
+        status="ok",
+        command="score",
+        source=p,
+        data=score.to_dict(),
     )
 
 

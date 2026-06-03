@@ -69,6 +69,27 @@ TOOLS: dict[str, ToolContract] = {
         idempotent=True,
         json_supported=True,
     ),
+    "report_stdout": ToolContract(
+        name="report_stdout",
+        safety="read-only",
+        description="Generate review report to artifact content. No file writes.",
+        idempotent=True,
+        json_supported=True,
+    ),
+    "report_file": ToolContract(
+        name="report_file",
+        safety="write-creating",
+        description="Generate review report and write to an explicit output path.",
+        idempotent=True,
+        json_supported=True,
+    ),
+    "score": ToolContract(
+        name="score",
+        safety="read-only",
+        description="Compute multi-dimensional quality score. No file writes.",
+        idempotent=True,
+        json_supported=True,
+    ),
     "run": ToolContract(
         name="run",
         safety="write-creating",
