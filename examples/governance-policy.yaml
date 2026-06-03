@@ -1,0 +1,68 @@
+name: "Enterprise Security Governance Policy"
+version: "1.0"
+default_severity: error
+
+# Architecture governance policy for Zephyr Workbench.
+# Run: zephyr govern governance-policy.yaml your-architecture.yaml
+#
+# Rule types:
+#   require_field          - all items of target must have non-empty field
+#   require_component_type - at least one component of given type must exist
+#   require_meta_field     - meta block must have non-empty field
+#   require_meta           - meta block must exist
+#   require_trust_boundaries - at least one trust boundary must be defined
+#   prohibit_external_bypass - external components must route through access-gateway
+#   require_control_coverage - components must have at least one control (target: all | high_criticality)
+
+rules:
+  - id: GOV-01
+    description: "Architecture meta block must be defined"
+    type: require_meta
+
+  - id: GOV-02
+    description: "Meta must identify an owner"
+    type: require_meta_field
+    field: owner
+
+  - id: GOV-03
+    description: "Meta must specify a version"
+    type: require_meta_field
+    field: version
+
+  - id: GOV-04
+    description: "At least one access-gateway must be present"
+    type: require_component_type
+    component_type: access-gateway
+
+  - id: GOV-05
+    description: "No external component may bypass the access-gateway"
+    type: prohibit_external_bypass
+
+  - id: GOV-06
+    description: "Trust boundaries must be defined"
+    type: require_trust_boundaries
+
+  - id: GOV-07
+    description: "All high-criticality components must have control coverage"
+    type: require_control_coverage
+    target: high_criticality
+
+  - id: GOV-08
+    description: "All risks must have a documented mitigation"
+    type: require_field
+    target: risks
+    field: mitigation
+
+  - id: GOV-09
+    description: "All components must have a criticality level"
+    type: require_field
+    target: components
+    field: criticality
+    severity: warning
+
+  - id: GOV-10
+    description: "All components must have a description"
+    type: require_field
+    target: components
+    field: description
+    severity: warning

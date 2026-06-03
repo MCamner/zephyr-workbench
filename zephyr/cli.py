@@ -10,9 +10,9 @@ from pathlib import Path
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
 from zephyr.add import run_add
-from zephyr.lifecycle import analyze_lifecycle
+from zephyr.lifecycle import analyze_lifecycle, LifecycleReport
 from zephyr.reporter import generate_report
-from zephyr.scoring import score_architecture
+from zephyr.scoring import ArchitectureScore, score_architecture
 from zephyr.intelligence import (
     analyze_architecture,
     explain_risk,
@@ -25,6 +25,40 @@ from zephyr.search import search_architecture, search_architecture_data
 from zephyr.analyzer import load_architecture, summarize_architecture, summarize_architecture_data
 from zephyr.diagram import to_html, to_mermaid
 from zephyr.diff import ArchitectureDiff, Change, diff_architectures, format_diff
+from zephyr.history import analyze_history, format_history
+from zephyr.impact import ChangeImpactReport, analyze_impact, format_impact
+from zephyr.memory import (
+    MemoryError as ArchMemoryError,
+    add_to_memory,
+    compare_architectures,
+    format_comparison,
+    format_memory_list,
+    format_search_results,
+    list_memory,
+    remove_from_memory,
+    search_memory,
+)
+from zephyr.governance import (
+    GovernancePolicyError,
+    check_governance,
+    format_governance_result,
+    load_governance_policy,
+)
+from zephyr.review_templates import (
+    ReviewTemplateResult,
+    format_review_template_result,
+    format_template_list,
+    list_review_templates,
+    review_with_template,
+)
+from zephyr.snapshots import (
+    SnapshotError,
+    delete_snapshot,
+    format_snapshot_list,
+    list_snapshots,
+    load_snapshot_architecture,
+    save_snapshot,
+)
 from zephyr.reference import build_reference
 from zephyr.templates import list_templates
 from zephyr.init_wizard import run_init_wizard
@@ -70,6 +104,58 @@ Commands
     • + added   - removed   ~ modified (with old → new values per field)
     • Exits 1 when changes exist, 0 when identical — use in CI pipelines
 
+  impact <before> <after>
+    Analyse the blast radius and security implications of architecture changes.
+    Shows affected upstream/downstream components, lost control coverage, and
+    potentially unmitigated risks.
+    • Exits 1 when severity is critical or high — use as a CI gate
+    • --json    output as machine-readable JSON envelope
+
+  govern <policy> <file> [--json]
+    Validate an architecture against a governance policy YAML file.
+    Policy rules: require_field, require_component_type, require_meta_field,
+    require_meta, require_trust_boundaries, prohibit_external_bypass,
+    require_control_coverage.
+    • Exits 1 when any error-severity rule is violated — use as a CI gate
+    • --json    output as machine-readable JSON envelope
+
+  snapshot save <tag> <file> [--description <text>]
+    Save a named snapshot of the current model state.
+
+  snapshot list <file> [--json]
+    List all snapshots for a model.
+
+  snapshot diff <tag-a> <tag-b> <file> [--json]
+    Diff two named snapshots.
+
+  snapshot impact <tag-a> <tag-b> <file> [--json]
+    Change impact analysis between two named snapshots.
+
+  snapshot delete <tag> <file>
+    Delete a named snapshot.
+
+  history <file> [--json]
+    Show a scored timeline across all snapshots: per-snapshot architecture
+    score, grade, change count, and impact severity. Tracks overall evolution
+    trend (improving / degrading / stable).
+
+  memory add <file>
+    Index an architecture file into the semantic memory store.
+    Re-running updates the existing entry.
+
+  memory remove <file>
+    Remove an architecture from the memory index.
+
+  memory list [--json]
+    List all indexed architectures with component and risk counts.
+
+  memory search <query> [--json]
+    Semantic keyword search across all indexed architectures.
+
+  memory compare <file-a> <file-b> [--json]
+    Cross-project structural comparison: shared types, unique patterns,
+    Jaccard similarity, and shared risk themes.
+
   init
     Create a new model interactively (guided wizard).
     • --template <name>     start from a template, skip the wizard
@@ -99,9 +185,13 @@ Commands
     insights, and risk distribution.
     • --json    output as machine-readable JSON envelope
 
-  review <file>
+  review <file> [--template <name>]
     Architecture review: all findings (anti-patterns + suggestions) in severity order.
+    • --template security|zero-trust|resilience|compliance   focused template review
     • --json    output as machine-readable JSON envelope
+
+  review-templates
+    List all available review templates with descriptions.
 
   score <file>
     Multi-dimensional quality score: risk health, control coverage, component
@@ -290,7 +380,17 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     review_parser.add_argument("file")
     review_parser.add_argument(
+        "--template",
+        choices=["security", "zero-trust", "resilience", "compliance"],
+        default=None,
+        help="Run a focused template review instead of the generic review",
+    )
+    review_parser.add_argument(
         "--json", action="store_true", help="Output result as a stable JSON envelope"
+    )
+
+    subparsers.add_parser(
+        "review-templates", help="List available focused review templates"
     )
 
     score_parser = subparsers.add_parser(
@@ -343,6 +443,90 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Output result as a stable JSON envelope",
     )
+
+    impact_parser = subparsers.add_parser(
+        "impact", help="Analyse blast radius and security implications of architecture changes"
+    )
+    impact_parser.add_argument("before", metavar="BEFORE")
+    impact_parser.add_argument("after", metavar="AFTER")
+    impact_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output result as a stable JSON envelope",
+    )
+
+    govern_parser = subparsers.add_parser(
+        "govern", help="Validate an architecture against a governance policy"
+    )
+    govern_parser.add_argument("policy", metavar="POLICY", help="Governance policy YAML file")
+    govern_parser.add_argument("file", metavar="FILE", help="Architecture YAML file")
+    govern_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output result as a stable JSON envelope",
+    )
+
+    history_parser = subparsers.add_parser(
+        "history", help="Show scored snapshot timeline and evolution trend"
+    )
+    history_parser.add_argument("file", metavar="FILE")
+    history_parser.add_argument("--json", action="store_true",
+                                help="Output result as a stable JSON envelope")
+
+    memory_parser = subparsers.add_parser(
+        "memory", help="Manage the multi-model semantic architecture memory"
+    )
+    mem_sub = memory_parser.add_subparsers(dest="mem_action")
+
+    mem_add = mem_sub.add_parser("add", help="Index an architecture file")
+    mem_add.add_argument("file", metavar="FILE")
+
+    mem_remove = mem_sub.add_parser("remove", help="Remove an architecture from the index")
+    mem_remove.add_argument("file", metavar="FILE")
+
+    mem_list = mem_sub.add_parser("list", help="List all indexed architectures")
+    mem_list.add_argument("--json", action="store_true", help="Output as JSON envelope")
+
+    mem_search = mem_sub.add_parser("search", help="Semantic search across indexed models")
+    mem_search.add_argument("query", metavar="QUERY")
+    mem_search.add_argument("--json", action="store_true", help="Output as JSON envelope")
+
+    mem_compare = mem_sub.add_parser("compare", help="Cross-project structural comparison")
+    mem_compare.add_argument("file_a", metavar="FILE_A")
+    mem_compare.add_argument("file_b", metavar="FILE_B")
+    mem_compare.add_argument("--json", action="store_true", help="Output as JSON envelope")
+
+    snapshot_parser = subparsers.add_parser(
+        "snapshot", help="Manage named architecture snapshots"
+    )
+    snap_sub = snapshot_parser.add_subparsers(dest="snap_action")
+
+    snap_save = snap_sub.add_parser("save", help="Save a named snapshot of the current model")
+    snap_save.add_argument("tag", metavar="TAG")
+    snap_save.add_argument("file", metavar="FILE")
+    snap_save.add_argument("--description", default="", help="Optional description")
+
+    snap_list = snap_sub.add_parser("list", help="List all snapshots for a model")
+    snap_list.add_argument("file", metavar="FILE")
+    snap_list.add_argument("--json", action="store_true", help="Output as JSON envelope")
+
+    snap_diff = snap_sub.add_parser("diff", help="Diff two named snapshots")
+    snap_diff.add_argument("tag_a", metavar="TAG_A")
+    snap_diff.add_argument("tag_b", metavar="TAG_B")
+    snap_diff.add_argument("file", metavar="FILE")
+    snap_diff.add_argument("--json", action="store_true", help="Output as JSON envelope")
+
+    snap_impact = snap_sub.add_parser(
+        "impact", help="Change impact analysis between two named snapshots"
+    )
+    snap_impact.add_argument("tag_a", metavar="TAG_A")
+    snap_impact.add_argument("tag_b", metavar="TAG_B")
+    snap_impact.add_argument("file", metavar="FILE")
+    snap_impact.add_argument("--json", action="store_true", help="Output as JSON envelope")
+
+    snap_delete = snap_sub.add_parser("delete", help="Delete a named snapshot")
+    snap_delete.add_argument("tag", metavar="TAG")
+    snap_delete.add_argument("file", metavar="FILE")
 
     import_parser = subparsers.add_parser(
         "import", help="Import a diagram into a Zephyr architecture YAML"
@@ -587,15 +771,15 @@ def main() -> None:
                 if args.json:
                     if args.output:
                         _write_text_output(diagram, args.output)
-                        artifact: dict = {"type": "diagram", "format": args.format, "path": args.output}
+                        diagram_artifact: dict = {"type": "diagram", "format": args.format, "path": args.output}
                     else:
-                        artifact = {"type": "diagram", "format": args.format, "content": diagram}
+                        diagram_artifact = {"type": "diagram", "format": args.format, "content": diagram}
                     _print_json_result(
                         _result_envelope(
                             command="diagram",
                             source=args.file,
                             status="ok",
-                            artifacts=[artifact],
+                            artifacts=[diagram_artifact],
                         )
                     )
                 elif args.output:
@@ -772,6 +956,22 @@ def main() -> None:
 
         if args.command == "review":
             architecture = load_architecture(args.file)
+            if args.template:
+                tmpl_result: ReviewTemplateResult = review_with_template(architecture, args.template)
+                if args.json:
+                    _print_json_result(
+                        _result_envelope(
+                            command="review",
+                            source=args.file,
+                            status="warning" if any(
+                                f.severity == "risk" for f in tmpl_result.all_findings
+                            ) else "ok",
+                            data=tmpl_result.to_dict(),
+                        )
+                    )
+                else:
+                    print(format_review_template_result(tmpl_result, architecture.name))
+                return
             findings = review_architecture(architecture)
             if args.json:
                 _print_json_result(
@@ -796,9 +996,13 @@ def main() -> None:
                 print(format_review(findings, architecture.name))
             return
 
+        if args.command == "review-templates":
+            print(format_template_list())
+            return
+
         if args.command == "score":
             architecture = load_architecture(args.file)
-            score = score_architecture(architecture)
+            score: ArchitectureScore = score_architecture(architecture)
             if args.json:
                 _print_json_result(
                     _result_envelope(
@@ -828,48 +1032,48 @@ def main() -> None:
 
         if args.command == "lifecycle":
             architecture = load_architecture(args.file)
-            report = analyze_lifecycle(architecture)
+            lc_report: LifecycleReport = analyze_lifecycle(architecture)
             if args.json:
                 _print_json_result(
                     _result_envelope(
                         command="lifecycle",
                         source=args.file,
-                        status="warning" if report.health != "healthy" else "ok",
-                        data=report.to_dict(),
+                        status="warning" if lc_report.health != "healthy" else "ok",
+                        data=lc_report.to_dict(),
                     )
                 )
             else:
                 _HEALTH_ICON = {"healthy": "✓", "warning": "⚠", "critical": "✗"}
-                icon = _HEALTH_ICON.get(report.health, "?")
-                print(f"\nLifecycle: {architecture.name}  [{icon} {report.health}]")
+                icon = _HEALTH_ICON.get(lc_report.health, "?")
+                print(f"\nLifecycle: {architecture.name}  [{icon} {lc_report.health}]")
                 print("─" * 40)
                 print("\nDistribution:")
-                for state, count in report.distribution.items():
+                for state, count in lc_report.distribution.items():
                     if count:
                         print(f"  {state:<12} {count}")
-                if report.deprecated_in_use:
+                if lc_report.deprecated_in_use:
                     print("\nDeprecated components still in active flows:")
-                    for d in report.deprecated_in_use:
-                        print(f"  ✗ {d.name}  ({d.flow_count} flow(s))")
-                        for f in d.flows[:4]:
+                    for dep in lc_report.deprecated_in_use:
+                        print(f"  ✗ {dep.name}  ({dep.flow_count} flow(s))")
+                        for f in dep.flows[:4]:
                             print(f"      {f}")
-                if report.planned_unconnected:
+                if lc_report.planned_unconnected:
                     print("\nPlanned components not yet connected:")
-                    for p in report.planned_unconnected:
+                    for p in lc_report.planned_unconnected:
                         desc = f" — {p.description}" if p.description else ""
                         print(f"  ○ {p.name}{desc}")
-                if report.no_lifecycle:
+                if lc_report.no_lifecycle:
                     print("\nComponents missing lifecycle field:")
-                    for name in report.no_lifecycle:
+                    for name in lc_report.no_lifecycle:
                         print(f"  ? {name}")
-                print(f"\n{report.summary}\n")
+                print(f"\n{lc_report.summary}\n")
             return
 
         if args.command == "report":
             architecture = load_architecture(args.file)
             content = generate_report(architecture, format=args.format)
             if args.json:
-                artifact: dict = (
+                report_artifact: dict = (
                     {"type": "report", "format": args.format, "path": args.output}
                     if args.output
                     else {"type": "report", "format": args.format, "content": content}
@@ -882,7 +1086,7 @@ def main() -> None:
                         source=args.file,
                         status="ok",
                         data={"format": args.format, "name": architecture.name},
-                        artifacts=[artifact],
+                        artifacts=[report_artifact],
                     )
                 )
             elif args.output:
@@ -945,6 +1149,213 @@ def main() -> None:
             else:
                 print(format_diff(diff))
             raise SystemExit(1 if not diff.is_empty() else 0)
+
+        if args.command == "impact":
+            arch_before = load_architecture(args.before)
+            arch_after = load_architecture(args.after)
+            diff = diff_architectures(arch_before, arch_after, source=args.before, target=args.after)
+            impact_report: ChangeImpactReport = analyze_impact(arch_before, arch_after, diff)
+            if args.json:
+                _print_json_result(
+                    _result_envelope(
+                        command="impact",
+                        source=args.before,
+                        status="warning" if impact_report.severity in ("critical", "high") else "ok",
+                        data=impact_report.to_dict(),
+                    )
+                )
+            else:
+                print(format_impact(impact_report))
+            raise SystemExit(1 if impact_report.severity in ("critical", "high") else 0)
+
+        if args.command == "govern":
+            try:
+                policy = load_governance_policy(args.policy)
+            except GovernancePolicyError as exc:
+                print(f"Error loading policy: {exc}", file=sys.stderr)
+                raise SystemExit(1) from exc
+            architecture = load_architecture(args.file)
+            gov_result = check_governance(architecture, policy)
+            if args.json:
+                _print_json_result(
+                    _result_envelope(
+                        command="govern",
+                        source=args.file,
+                        status="warning" if (gov_result.violations and not gov_result.has_errors) else
+                               ("error" if gov_result.has_errors else "ok"),
+                        data=gov_result.to_dict(),
+                    )
+                )
+            else:
+                print(format_governance_result(gov_result, args.policy, architecture.name))
+            raise SystemExit(1 if gov_result.has_errors else 0)
+
+        if args.command == "history":
+            hist_report = analyze_history(args.file)
+            if args.json:
+                _print_json_result(
+                    _result_envelope(
+                        command="history",
+                        source=args.file,
+                        status="ok",
+                        data=hist_report.to_dict(),
+                    )
+                )
+            else:
+                print(format_history(hist_report))
+            return
+
+        if args.command == "memory":
+            if not getattr(args, "mem_action", None):
+                memory_parser.print_help()  # type: ignore[name-defined]
+                raise SystemExit(1)
+
+            if args.mem_action == "add":
+                try:
+                    model = add_to_memory(args.file)
+                    score_str = f"  score {model.score} ({model.grade})" if model.score else ""
+                    print(f"Indexed '{model.name}' — {model.component_count} components{score_str}")
+                except ArchMemoryError as exc:
+                    print(f"Error: {exc}", file=sys.stderr)
+                    raise SystemExit(1) from exc
+                return
+
+            if args.mem_action == "remove":
+                try:
+                    remove_from_memory(args.file)
+                    print(f"Removed '{args.file}' from memory index.")
+                except ArchMemoryError as exc:
+                    print(f"Error: {exc}", file=sys.stderr)
+                    raise SystemExit(1) from exc
+                return
+
+            if args.mem_action == "list":
+                models = list_memory()
+                if args.json:
+                    _print_json_result(
+                        _result_envelope(
+                            command="memory-list",
+                            source="",
+                            status="ok",
+                            data={"models": [m.to_dict() for m in models]},
+                        )
+                    )
+                else:
+                    print(format_memory_list(models))
+                return
+
+            if args.mem_action == "search":
+                results = search_memory(args.query)
+                if args.json:
+                    _print_json_result(
+                        _result_envelope(
+                            command="memory-search",
+                            source="",
+                            status="ok",
+                            data={"query": args.query,
+                                  "results": [r.to_dict() for r in results]},
+                        )
+                    )
+                else:
+                    print(format_search_results(results, args.query))
+                return
+
+            if args.mem_action == "compare":
+                arch_a = load_architecture(args.file_a)
+                arch_b = load_architecture(args.file_b)
+                cmp_result = compare_architectures(arch_a, arch_b,
+                                                   name_a=args.file_a, name_b=args.file_b)
+                if args.json:
+                    _print_json_result(
+                        _result_envelope(
+                            command="memory-compare",
+                            source=args.file_a,
+                            status="ok",
+                            data=cmp_result.to_dict(),
+                        )
+                    )
+                else:
+                    print(format_comparison(cmp_result))
+                return
+
+        if args.command == "snapshot":
+            if not getattr(args, "snap_action", None):
+                snapshot_parser.print_help()  # type: ignore[name-defined]
+                raise SystemExit(1)
+
+            if args.snap_action == "save":
+                try:
+                    meta = save_snapshot(args.file, args.tag, description=args.description)
+                    print(f"Snapshot '{meta.tag}' saved  ({meta.created_at})")
+                except SnapshotError as exc:
+                    print(f"Error: {exc}", file=sys.stderr)
+                    raise SystemExit(1) from exc
+                return
+
+            if args.snap_action == "list":
+                snaps = list_snapshots(args.file)
+                if args.json:
+                    _print_json_result(
+                        _result_envelope(
+                            command="snapshot-list",
+                            source=args.file,
+                            status="ok",
+                            data={"snapshots": [s.to_dict() for s in snaps]},
+                        )
+                    )
+                else:
+                    print(format_snapshot_list(args.file, snaps))
+                return
+
+            if args.snap_action == "delete":
+                try:
+                    delete_snapshot(args.file, args.tag)
+                    print(f"Snapshot '{args.tag}' deleted.")
+                except SnapshotError as exc:
+                    print(f"Error: {exc}", file=sys.stderr)
+                    raise SystemExit(1) from exc
+                return
+
+            if args.snap_action in ("diff", "impact"):
+                try:
+                    arch_a = load_snapshot_architecture(args.file, args.tag_a)
+                    arch_b = load_snapshot_architecture(args.file, args.tag_b)
+                except SnapshotError as exc:
+                    print(f"Error: {exc}", file=sys.stderr)
+                    raise SystemExit(1) from exc
+
+                label_a = f"{args.file}@{args.tag_a}"
+                label_b = f"{args.file}@{args.tag_b}"
+                diff = diff_architectures(arch_a, arch_b, source=label_a, target=label_b)
+
+                if args.snap_action == "diff":
+                    if args.json:
+                        _print_json_result(
+                            _result_envelope(
+                                command="snapshot-diff",
+                                source=args.file,
+                                status="warning" if not diff.is_empty() else "ok",
+                                data=_diff_to_dict(diff),
+                            )
+                        )
+                    else:
+                        print(format_diff(diff))
+                    raise SystemExit(1 if not diff.is_empty() else 0)
+
+                # snap_action == "impact"
+                snap_impact = analyze_impact(arch_a, arch_b, diff)
+                if args.json:
+                    _print_json_result(
+                        _result_envelope(
+                            command="snapshot-impact",
+                            source=args.file,
+                            status="warning" if snap_impact.severity in ("critical", "high") else "ok",
+                            data=snap_impact.to_dict(),
+                        )
+                    )
+                else:
+                    print(format_impact(snap_impact))
+                raise SystemExit(1 if snap_impact.severity in ("critical", "high") else 0)
 
         if args.command == "init":
             exit_code = run_init_wizard(

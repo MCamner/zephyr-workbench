@@ -121,22 +121,22 @@ Mermaid / HTML / report output
 - [ ] Architecture OCR pipelines
 - [ ] Component detection from diagrams
 - [x] Architecture scoring
-- [ ] Review templates
+- [x] Review templates
 - [x] Architecture review reports
 - [x] Architecture lifecycle tracking
-- [ ] Change impact analysis
-- [ ] Release architecture snapshots
-- [ ] Architecture governance workflows
+- [x] Change impact analysis
+- [x] Release architecture snapshots
+- [x] Architecture governance workflows
 
 ---
 
 ## v0.6.0 — Semantic Architecture Memory
 
-- [ ] Architecture vector indexing
-- [ ] Semantic architecture memory
-- [ ] Architecture history tracking
-- [ ] Architecture evolution analysis
-- [ ] Cross-project architecture comparison
+- [x] Architecture vector indexing
+- [x] Semantic architecture memory
+- [x] Architecture history tracking
+- [x] Architecture evolution analysis
+- [x] Cross-project architecture comparison
 
 ---
 
