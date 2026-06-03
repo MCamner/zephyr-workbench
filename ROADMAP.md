@@ -17,8 +17,8 @@ The long-term goal is to support:
 
 ## Current Focus
 
-Current: v0.2.0 — schema expansion shipped.
-Next:    v0.3.1 — stabilize architecture intelligence contracts for mq-mcp and agent workflows.
+Current: v0.3.1 — MCP runtime contracts shipped.
+Next:    mq-mcp Zephyr adapter — wire runtime.py into mq-mcp tool gateway.
 
 Focus on machine-readable outputs, safe tool boundaries, and validation-first execution before adding broader review automation.
 
@@ -90,11 +90,11 @@ Make Zephyr easier to call safely from mq-mcp, agents, scripts, and local automa
 Expose Zephyr as a safe tool runtime for agents and local MCP clients.
 
 - [x] Stable JSON output contracts for validation, summary, diagram, diff, and search
-- [ ] Read-only MCP tools for inspecting architecture models
-- [ ] Validation-first MCP tool flow: load → validate → analyze → render
-- [ ] Explicit write controls for generated YAML suggestions
+- [x] Read-only MCP tools for inspecting architecture models (Python API in runtime.py)
+- [x] Validation-first MCP tool flow: validate → summary/diagram/search
+- [x] Explicit write controls for generated YAML suggestions (contracts.py + requires_write_intent)
 - [x] Tool result schemas that agents can consume without parsing terminal text
-- [ ] Guardrails for risky operations: no silent model rewrites, no autonomous remediation
+- [x] Guardrails for risky operations: forbidden safety class blocks init/add from agent calls
 
 ---
 
