@@ -533,13 +533,16 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     import_parser.add_argument(
         "file",
-        help="Diagram file to import (.mmd for Mermaid, .xml/.drawio for draw.io)",
+        help=(
+            "Diagram or image file to import "
+            "(.mmd for Mermaid, .xml/.drawio for draw.io, .png/.jpg/.jpeg/.bmp/.gif for OCR image import)"
+        ),
     )
     import_parser.add_argument(
         "--format",
         choices=["auto", "mermaid", "drawio"],
         default="auto",
-        help="Diagram format (default: auto-detect from file extension)",
+        help="Diagram format for OCR image imports, or auto-detect from file extension/text.",
     )
     import_parser.add_argument(
         "--output",
@@ -829,6 +832,7 @@ def main() -> None:
 
         if args.command == "import":
             from zephyr.diagram_import import detect_format, parse_diagram
+            from zephyr.image_import import is_image_path, parse_image
             import yaml as _yaml
 
             src = Path(args.file)
@@ -837,7 +841,11 @@ def main() -> None:
                 raise SystemExit(1)
 
             fmt = args.format if args.format != "auto" else detect_format(args.file)
-            diagram_result = parse_diagram(src.read_text(encoding="utf-8"), fmt)
+            if is_image_path(src):
+                image_format = None if args.format == "auto" else fmt
+                diagram_result = parse_image(src, image_format)
+            else:
+                diagram_result = parse_diagram(src.read_text(encoding="utf-8"), fmt)
             yaml_str = diagram_result.to_yaml_string()
 
             val_errors: list[str] = []

@@ -387,18 +387,33 @@ def import_diagram_model(
     from zephyr.diagram_import import detect_format, parse_diagram
 
     p = str(path)
-    try:
-        text = Path(path).read_text(encoding="utf-8")
-    except OSError as exc:
-        return ZephyrResult(
-            status="error",
-            command="import",
-            source=p,
-            errors=[str(exc)],
-        )
+    path_obj = Path(path)
+    if path_obj.suffix.lower() in {".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tiff", ".tif"}:
+        from zephyr.image_import import parse_image
 
-    fmt = format or detect_format(path)
-    result = parse_diagram(text, fmt)
+        image_format = None if format in (None, "auto") else format
+        try:
+            result = parse_image(path_obj, image_format)
+        except Exception as exc:
+            return ZephyrResult(
+                status="error",
+                command="import",
+                source=p,
+                errors=[str(exc)],
+            )
+    else:
+        try:
+            text = path_obj.read_text(encoding="utf-8")
+        except OSError as exc:
+            return ZephyrResult(
+                status="error",
+                command="import",
+                source=p,
+                errors=[str(exc)],
+            )
+
+        fmt = format or detect_format(path)
+        result = parse_diagram(text, fmt)
     yaml_str = result.to_yaml_string()
 
     if output is not None:

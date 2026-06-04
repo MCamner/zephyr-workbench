@@ -118,8 +118,8 @@ Mermaid / HTML / report output
 
 ## v0.5.0 — Architecture Review Platform
 
-- [ ] Architecture OCR pipelines
-- [ ] Component detection from diagrams
+- [x] Architecture OCR pipelines
+- [x] Component detection from diagrams
 - [x] Architecture scoring
 - [x] Review templates
 - [x] Architecture review reports
