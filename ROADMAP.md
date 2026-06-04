@@ -22,7 +22,7 @@ Next:    define v0.7.0.
 
 Focus on machine-readable outputs, safe tool boundaries, and validation-first execution before adding broader review automation.
 
-Current slice shipped: `zephyr-result.v1` envelope across all commands, Python runtime API (`zephyr/runtime.py`), `ZephyrResult` type, tool safety contracts (`zephyr/contracts.py`), and `docs/tool-contracts.md`.
+Current slice shipped: semantic architecture memory (`zephyr/memory.py`), named snapshots (`zephyr/snapshots.py`), history and evolution analysis (`zephyr/history.py`), plus CLI and runtime API coverage for memory, snapshot, and history workflows.
 
 ---
 
