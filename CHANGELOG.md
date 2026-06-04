@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.6.0] — 2026-06-04
+
+- `zephyr/memory.py`: semantic architecture memory with keyword-based architecture vector indexing, add/remove/list/search operations, and cross-project comparison.
+- `zephyr/snapshots.py`: named architecture snapshots stored under `.zephyr/snapshots`, with save, list, delete, diff, and impact workflows.
+- `zephyr/history.py`: architecture history tracking and evolution analysis across snapshots, including score trends and change impact severity.
+- `zephyr runtime`: stable Python API coverage for memory, snapshot, and history workflows using `zephyr-result.v1` envelopes.
+- CLI coverage for `memory`, `snapshot`, and `history` commands.
+- Tests for memory, snapshots, and history workflows.
+
 ## [0.5.0] — 2026-06-03
 
 - `zephyr/scoring.py`: `ArchitectureScore` datatype and `score_architecture()` — five-dimension quality scoring: risk health, control coverage, component maturity, structural health, definition completeness

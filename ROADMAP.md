@@ -17,8 +17,8 @@ The long-term goal is to support:
 
 ## Current Focus
 
-Current: v0.5.0 — Architecture review platform, OCR pipelines, and component detection from diagrams.
-Next:    v0.6.0 — AI-assisted architecture generation and visual intelligence synthesis.
+Current: v0.6.0 — Semantic Architecture Memory.
+Next:    define v0.7.0.
 
 Focus on machine-readable outputs, safe tool boundaries, and validation-first execution before adding broader review automation.
 

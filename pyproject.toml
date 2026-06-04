@@ -1,6 +1,6 @@
 [project]
 name = "zephyr-workbench"
-version = "0.5.0"
+version = "0.6.0"
 description = "Architecture workbench for modeling, analyzing, and visualizing infrastructure systems and flows."
 readme = "README.md"
 requires-python = ">=3.11"
