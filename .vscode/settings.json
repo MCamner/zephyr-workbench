@@ -1,0 +1,4 @@
+{
+  "python.defaultInterpreterPath": "/Users/mansys/zephyr-workbench/.venv/bin/python",
+  "python.analysis.extraPaths": ["/Users/mansys/zephyr-workbench"]
+}
