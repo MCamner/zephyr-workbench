@@ -333,6 +333,63 @@ def _brain_record(source: str, findings: list, raw: dict) -> None:
         print(f"[brain] failed: {result.stderr.strip()[:120]}", file=sys.stderr)
 
 
+def _brain_decide(file_a: str, file_b: str, diff_data: dict) -> None:
+    """Call mq-agent decide as a subprocess to record a diff as an ADR. Silent if mq-agent not found."""
+    if not shutil.which("mq-agent"):
+        print(f"[brain] mq-agent not found — skipping brain decide for {file_a}", file=sys.stderr)
+        return
+
+    def _summarise(changes: list[dict]) -> str:
+        added = [c["label"] for c in changes if c["status"] == "added"]
+        removed = [c["label"] for c in changes if c["status"] == "removed"]
+        modified = [c["label"] for c in changes if c["status"] == "modified"]
+        parts = []
+        if added:
+            parts.append(f"added: {', '.join(added[:3])}")
+        if removed:
+            parts.append(f"removed: {', '.join(removed[:3])}")
+        if modified:
+            parts.append(f"modified: {', '.join(modified[:3])}")
+        return "; ".join(parts) if parts else "no changes"
+
+    components_summary = _summarise(diff_data.get("components", []))
+    flows_summary = _summarise(diff_data.get("flows", []))
+    risks_summary = _summarise(diff_data.get("risks", []))
+
+    context = (
+        f"zephyr diff between {file_a} and {file_b}. "
+        f"Components: {len(diff_data.get('components', []))} changes. "
+        f"Flows: {len(diff_data.get('flows', []))} changes. "
+        f"Risks: {len(diff_data.get('risks', []))} changes."
+    )
+    decision = f"Architecture changed from {file_a} to {file_b}."
+    rationale_parts = []
+    if components_summary != "no changes":
+        rationale_parts.append(f"Components — {components_summary}")
+    if flows_summary != "no changes":
+        rationale_parts.append(f"Flows — {flows_summary}")
+    if risks_summary != "no changes":
+        rationale_parts.append(f"Risks — {risks_summary}")
+    rationale = "; ".join(rationale_parts) if rationale_parts else "No structural changes detected."
+
+    title = f"Architecture drift: {Path(file_a).stem} → {Path(file_b).stem}"
+
+    cmd = [
+        "mq-agent", "decide", title,
+        "--context", context,
+        "--decision", decision,
+        "--rationale", rationale,
+        "--tag", "architecture",
+        "--tag", "zephyr",
+    ]
+
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode == 0:
+        print(f"[brain] {result.stdout.strip()}", file=sys.stderr)
+    else:
+        print(f"[brain] failed: {result.stderr.strip()[:120]}", file=sys.stderr)
+
+
 def _change_to_dict(change: Change) -> dict:
     return {
         "status": change.status,
@@ -481,6 +538,9 @@ def _build_parser() -> argparse.ArgumentParser:
         "--json",
         action="store_true",
         help="Output result as a stable JSON envelope",
+    )
+    diff_parser.add_argument(
+        "--brain", action="store_true", help="Record drift as an ADR to mqobsidian/decisions/ via mq-agent"
     )
 
     impact_parser = subparsers.add_parser(
@@ -1192,17 +1252,20 @@ def main() -> None:
             a = load_architecture(args.file_a)
             b = load_architecture(args.file_b)
             diff = diff_architectures(a, b, source=args.file_a, target=args.file_b)
+            diff_data = _diff_to_dict(diff)
             if args.json:
                 _print_json_result(
                     _result_envelope(
                         command="diff",
                         source=args.file_a,
                         status="warning" if not diff.is_empty() else "ok",
-                        data=_diff_to_dict(diff),
+                        data=diff_data,
                     )
                 )
             else:
                 print(format_diff(diff))
+            if getattr(args, "brain", False) and not diff.is_empty():
+                _brain_decide(args.file_a, args.file_b, diff_data)
             raise SystemExit(1 if not diff.is_empty() else 0)
 
         if args.command == "impact":
