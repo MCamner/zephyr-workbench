@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
+import subprocess
 import sys
 import time
 import threading
@@ -300,6 +302,37 @@ def _print_json_result(payload: dict) -> None:
     print(json.dumps(payload, indent=2))
 
 
+def _brain_record(source: str, findings: list, raw: dict) -> None:
+    """Call mq-agent brain record-review as a subprocess. Silent if mq-agent not found."""
+    if not shutil.which("mq-agent"):
+        print(f"[brain] mq-agent not found — skipping brain record for {source}", file=sys.stderr)
+        return
+
+    top_risks = [
+        f"[{f.get('severity', 'info').upper()}] {f.get('message', '')}"
+        for f in findings[:5]
+        if f.get("message")
+    ]
+    raw_summary = json.dumps(raw, indent=2)[:4000]
+
+    cmd = [
+        "mq-agent", "brain", "record-review",
+        "--source", source,
+        "--finding-count", str(len(findings)),
+        "--confidence", "high" if any(f.get("severity") == "risk" for f in findings) else "medium",
+        "--raw-summary", raw_summary,
+        "--approve",
+    ]
+    for r in top_risks:
+        cmd += ["--top-risk", r]
+
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode == 0:
+        print(f"[brain] {result.stdout.strip()}", file=sys.stderr)
+    else:
+        print(f"[brain] failed: {result.stderr.strip()[:120]}", file=sys.stderr)
+
+
 def _change_to_dict(change: Change) -> dict:
     return {
         "status": change.status,
@@ -374,6 +407,9 @@ def _build_parser() -> argparse.ArgumentParser:
     analyze_parser.add_argument(
         "--json", action="store_true", help="Output result as a stable JSON envelope"
     )
+    analyze_parser.add_argument(
+        "--brain", action="store_true", help="Record result to mqobsidian second brain via mq-agent"
+    )
 
     review_parser = subparsers.add_parser(
         "review", help="Architecture review: all findings in severity order"
@@ -387,6 +423,9 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     review_parser.add_argument(
         "--json", action="store_true", help="Output result as a stable JSON envelope"
+    )
+    review_parser.add_argument(
+        "--brain", action="store_true", help="Record result to mqobsidian second brain via mq-agent"
     )
 
     subparsers.add_parser(
@@ -927,8 +966,11 @@ def main() -> None:
         if args.command == "analyze":
             architecture = load_architecture(args.file)
             analysis = analyze_architecture(architecture)
+            all_findings = [
+                {"severity": f.severity, "code": f.code, "message": f.message, "affected": f.affected}
+                for f in analysis.antipatterns + analysis.suggestions
+            ]
             if args.json:
-                from dataclasses import asdict
                 _print_json_result(
                     _result_envelope(
                         command="analyze",
@@ -936,16 +978,8 @@ def main() -> None:
                         status="warning" if analysis.has_blocking() else "ok",
                         data={
                             "narrative": analysis.narrative,
-                            "antipatterns": [
-                                {"severity": f.severity, "code": f.code,
-                                 "message": f.message, "affected": f.affected}
-                                for f in analysis.antipatterns
-                            ],
-                            "suggestions": [
-                                {"severity": f.severity, "code": f.code,
-                                 "message": f.message, "affected": f.affected}
-                                for f in analysis.suggestions
-                            ],
+                            "antipatterns": [f for f in all_findings if f["severity"] == "risk"],
+                            "suggestions": [f for f in all_findings if f["severity"] != "risk"],
                             "risk_analysis": analysis.risk_analysis,
                             "dependency_insights": {
                                 "external_reachable": analysis.dependency_insights.external_reachable,
@@ -960,6 +994,12 @@ def main() -> None:
                 )
             else:
                 print(format_analysis(analysis, architecture.name))
+            if getattr(args, "brain", False):
+                _brain_record(
+                    source=f"zephyr-analyze:{args.file}",
+                    findings=all_findings,
+                    raw={"narrative": analysis.narrative, "risk_analysis": analysis.risk_analysis},
+                )
             return
 
         if args.command == "review":
@@ -981,6 +1021,10 @@ def main() -> None:
                     print(format_review_template_result(tmpl_result, architecture.name))
                 return
             findings = review_architecture(architecture)
+            findings_dicts = [
+                {"severity": f.severity, "code": f.code, "message": f.message, "affected": f.affected}
+                for f in findings
+            ]
             if args.json:
                 _print_json_result(
                     _result_envelope(
@@ -988,11 +1032,7 @@ def main() -> None:
                         source=args.file,
                         status="warning" if any(f.severity == "risk" for f in findings) else "ok",
                         data={
-                            "findings": [
-                                {"severity": f.severity, "code": f.code,
-                                 "message": f.message, "affected": f.affected}
-                                for f in findings
-                            ],
+                            "findings": findings_dicts,
                             "counts": {
                                 sev: sum(1 for f in findings if f.severity == sev)
                                 for sev in ("risk", "warning", "suggestion", "note")
@@ -1002,6 +1042,13 @@ def main() -> None:
                 )
             else:
                 print(format_review(findings, architecture.name))
+            if getattr(args, "brain", False):
+                _brain_record(
+                    source=f"zephyr-review:{args.file}",
+                    findings=findings_dicts,
+                    raw={"counts": {sev: sum(1 for f in findings if f.severity == sev)
+                                    for sev in ("risk", "warning", "suggestion", "note")}},
+                )
             return
 
         if args.command == "review-templates":
