@@ -17,12 +17,12 @@ The long-term goal is to support:
 
 ## Current Focus
 
-Current: v0.4.0 — Diagram Intelligence shipped.
-Next:    v0.5.0 — Image-to-architecture workflows and broader visual architecture ingestion.
+Current: v0.6.0 — Semantic Architecture Memory.
+Next:    define v0.7.0.
 
 Focus on machine-readable outputs, safe tool boundaries, and validation-first execution before adding broader review automation.
 
-Current slice shipped: `zephyr-result.v1` envelope across all commands, Python runtime API (`zephyr/runtime.py`), `ZephyrResult` type, tool safety contracts (`zephyr/contracts.py`), and `docs/tool-contracts.md`.
+Current slice shipped: semantic architecture memory (`zephyr/memory.py`), named snapshots (`zephyr/snapshots.py`), history and evolution analysis (`zephyr/history.py`), plus CLI and runtime API coverage for memory, snapshot, and history workflows.
 
 ---
 
@@ -96,11 +96,9 @@ Expose Zephyr as a safe tool runtime for agents and local MCP clients.
 
 Bridge visual architecture and structured architecture models.
 
-- [ ] Mermaid reverse parsing
-- [ ] draw.io import experiments
-- [ ] Image-to-architecture workflows
-- [ ] Architecture OCR pipelines
-- [ ] Component detection from diagrams
+- [x] Mermaid reverse parsing
+- [x] draw.io import experiments
+- [x] Image-to-architecture workflows
 
 ### mq-image-analyze Integration
 
@@ -120,23 +118,25 @@ Mermaid / HTML / report output
 
 ## v0.5.0 — Architecture Review Platform
 
-- [ ] Architecture scoring
-- [ ] Review templates
-- [ ] Architecture review reports
-- [ ] Architecture lifecycle tracking
-- [ ] Change impact analysis
-- [ ] Release architecture snapshots
-- [ ] Architecture governance workflows
+- [x] Architecture OCR pipelines
+- [x] Component detection from diagrams
+- [x] Architecture scoring
+- [x] Review templates
+- [x] Architecture review reports
+- [x] Architecture lifecycle tracking
+- [x] Change impact analysis
+- [x] Release architecture snapshots
+- [x] Architecture governance workflows
 
 ---
 
 ## v0.6.0 — Semantic Architecture Memory
 
-- [ ] Architecture vector indexing
-- [ ] Semantic architecture memory
-- [ ] Architecture history tracking
-- [ ] Architecture evolution analysis
-- [ ] Cross-project architecture comparison
+- [x] Architecture vector indexing
+- [x] Semantic architecture memory
+- [x] Architecture history tracking
+- [x] Architecture evolution analysis
+- [x] Cross-project architecture comparison
 
 ---
 

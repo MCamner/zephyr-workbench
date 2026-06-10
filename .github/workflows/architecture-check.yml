@@ -26,6 +26,10 @@ jobs:
       - name: Validate all models
         run: |
           for f in examples/*.yaml; do
+            if grep -q "^rules:" "$f"; then
+              echo "Skipping governance policy: $f"
+              continue
+            fi
             echo "Validating $f..."
             zephyr validate "$f"
           done

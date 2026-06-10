@@ -13,6 +13,7 @@ from zephyr.diagram_import import (
     parse_drawio,
     parse_mermaid,
 )
+from zephyr.image_import import is_image_path, parse_image
 from zephyr.diagram import to_mermaid
 from zephyr.loader import architecture_from_data
 
@@ -61,6 +62,27 @@ def test_detect_format_xml():
 def test_detect_format_unknown_defaults_mermaid():
     assert detect_format("diagram.txt") == "mermaid"
 
+
+# ── parse_mermaid: basic structure ────────────────────────────────────────────
+
+def test_is_image_path_png():
+    assert is_image_path("diagram.png")
+    assert is_image_path("diagram.JPG")
+    assert not is_image_path("diagram.mmd")
+
+
+def test_parse_image_uses_ocr_text(monkeypatch, tmp_path):
+    image_path = tmp_path / "diagram.png"
+    image_path.write_text("fake image data")
+
+    def fake_ocr(path):
+        return "graph TD\n    A[\"Node A (application)\"]"
+
+    monkeypatch.setattr("zephyr.image_import.extract_text_from_image", fake_ocr)
+    result = parse_image(image_path, format="mermaid")
+    assert len(result.components) == 1
+    assert result.components[0]["name"] == "Node A"
+    assert result.components[0]["type"] == "application"
 
 # ── parse_mermaid: basic structure ────────────────────────────────────────────
 

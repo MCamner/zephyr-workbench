@@ -1,0 +1,36 @@
+[
+  {
+    "path": "/Users/mansys/zephyr-workbench/examples/identity-flow.yaml",
+    "name": "identity-flow",
+    "indexed_at": "2026-06-03T18:47:41Z",
+    "component_count": 5,
+    "flow_count": 4,
+    "risk_count": 1,
+    "component_types": [
+      "actor",
+      "application",
+      "endpoint",
+      "identity-provider",
+      "security-control"
+    ],
+    "keywords": [
+      "actor",
+      "app",
+      "application",
+      "control",
+      "endpoint",
+      "fallback",
+      "flow",
+      "identity",
+      "idp",
+      "medium",
+      "mfa",
+      "path",
+      "provider",
+      "security",
+      "user"
+    ],
+    "score": 52,
+    "grade": "D"
+  }
+]

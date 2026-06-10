@@ -1,0 +1,6 @@
+{
+  "venvPath": "/Users/mansys/zephyr-workbench",
+  "venv": ".venv",
+  "pythonVersion": "3.11",
+  "extraPaths": ["/Users/mansys/zephyr-workbench"]
+}
