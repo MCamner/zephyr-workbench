@@ -37,7 +37,7 @@ def _ocr_with_tesseract_cli(path: Path) -> str:
         raise RuntimeError("Tesseract CLI is not installed or not found on PATH")
 
     result = subprocess.run(
-        ["tesseract", str(path), "stdout"], capture_output=True, text=True
+        ["tesseract", str(path), "stdout"], capture_output=True, text=True, check=False
     )
     if result.returncode != 0:
         stderr = result.stderr.strip() or "Unknown tesseract error"
