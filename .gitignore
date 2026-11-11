@@ -208,3 +208,6 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Review context maps written by mq-mcp build_repo_context (ADR-008)
+generated/architecture/
