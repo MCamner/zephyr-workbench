@@ -46,6 +46,20 @@ properties:
     required: false
     allowed: [business, application, data, technology]
 
+  trust_boundaries:
+    type: array
+    required: false
+    item_required: [name]
+    item_properties:
+      name:
+        type: string
+      description:
+        type: string
+        required: false
+      color:
+        type: string
+        required: false
+
   components:
     type: array
     min_items: 1
@@ -91,6 +105,14 @@ properties:
         type: string
         required: false
         allowed: [planned, active, deprecated]
+      trust_boundary:
+        type: string
+        required: false
+        description: Name in trust_boundaries; unknown names produce warnings.
+      tags:
+        type: list[string]
+        required: false
+
 
   flows:
     type: array
@@ -154,6 +176,28 @@ properties:
         type: string
         required: false
         allowed: [low, medium, high]
+      components:
+        type: list[string]
+        required: false
+        description: Explicit affected component names; every reference must exist.
+      flows:
+        type: array
+        required: false
+        item_required: [from, to]
+        item_properties:
+          from:
+            type: string
+          to:
+            type: string
+          label:
+            type: string
+            required: false
+        description: References match from, to and label (empty if omitted).
+      controls:
+        type: list[string]
+        required: false
+        description: Names of existing controls that mitigate this risk.
+
 
   controls:
     type: array

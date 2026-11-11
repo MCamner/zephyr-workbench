@@ -176,4 +176,4 @@ def test_format_diff_lists_unchanged_sections() -> None:
     b = _arch(components=[Component(name="idp", type="identity-provider")])
     diff = diff_architectures(a, b)
     output = format_diff(diff)
-    assert "No changes: meta, flows, risks, controls, stakeholders" in output
+    assert "No changes: meta, architecture, trust boundaries, flows, risks, controls, stakeholders" in output

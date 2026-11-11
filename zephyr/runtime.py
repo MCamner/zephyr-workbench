@@ -30,6 +30,7 @@ from zephyr.memory import (
     compare_architectures,
     list_memory,
     remove_from_memory,
+    refresh_memory,
     search_memory,
 )
 from zephyr.governance import (
@@ -94,6 +95,8 @@ def _diff_to_dict(diff: ArchitectureDiff) -> dict:
         "source": diff.source,
         "target": diff.target,
         "changed": not diff.is_empty(),
+        "architecture": [_change_to_dict(c) for c in diff.architecture],
+        "trust_boundaries": [_change_to_dict(c) for c in diff.trust_boundaries],
         "meta": _change_to_dict(diff.meta) if diff.meta else None,
         "components": [_change_to_dict(c) for c in diff.components],
         "flows": [_change_to_dict(f) for f in diff.flows],
@@ -365,6 +368,7 @@ def explain_risk_model(path: str | Path, risk_id: str) -> ZephyrResult:
             "mitigation": ctx.mitigation,
             "affected_components": ctx.affected_components,
             "affected_flows": ctx.affected_flows,
+            "controls": ctx.controls,
             "explanation": ctx.explanation,
         },
     )
@@ -385,52 +389,43 @@ def import_diagram_model(
     artifacts[0]: type='yaml', format='zephyr', content=<yaml> or path=<path>
     """
     from zephyr.diagram_import import detect_format, parse_diagram
+    from zephyr.image_import import is_image_path, parse_image
 
     p = str(path)
-    path_obj = Path(path)
-    if path_obj.suffix.lower() in {".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tiff", ".tif"}:
-        from zephyr.image_import import parse_image
-
-        image_format = None if format in (None, "auto") else format
-        try:
-            result = parse_image(path_obj, image_format)
-        except Exception as exc:
-            return ZephyrResult(
-                status="error",
-                command="import",
-                source=p,
-                errors=[str(exc)],
+    try:
+        path_obj = Path(path)
+        fmt = None if format in (None, "auto") else format
+        if is_image_path(path_obj):
+            result = parse_image(path_obj, fmt)
+        else:
+            result = parse_diagram(
+                path_obj.read_text(encoding="utf-8"), fmt or detect_format(path)
             )
-    else:
-        try:
-            text = path_obj.read_text(encoding="utf-8")
-        except OSError as exc:
-            return ZephyrResult(
-                status="error",
-                command="import",
-                source=p,
-                errors=[str(exc)],
-            )
-
-        fmt = format or detect_format(path)
-        result = parse_diagram(text, fmt)
-    yaml_str = result.to_yaml_string()
-
-    if output is not None:
-        out = Path(output)
-        out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(yaml_str, encoding="utf-8")
-        artifact: dict = {"type": "yaml", "format": "zephyr", "path": str(out)}
-    else:
-        artifact = {"type": "yaml", "format": "zephyr", "content": yaml_str}
-
+        data = result.to_yaml_data()
+        validate_architecture_data(data)
+        warnings = result.warnings + collect_validation_warnings(data)
+        yaml_str = result.to_yaml_string()
+        if output is not None:
+            out = Path(output)
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text(yaml_str, encoding="utf-8")
+            artifact = {"type": "yaml", "format": "zephyr", "path": str(out)}
+        else:
+            artifact = {"type": "yaml", "format": "zephyr", "content": yaml_str}
+    except (OSError, ValueError, RuntimeError) as exc:
+        return ZephyrResult(
+            status="error",
+            command="import",
+            source=p,
+            errors=exc.errors if isinstance(exc, ValidationError) else [str(exc)],
+        )
     return ZephyrResult(
-        status="warning" if result.warnings else "ok",
+        status="warning" if warnings else "ok",
         command="import",
         source=p,
-        warnings=result.warnings,
+        warnings=warnings,
         data={
-            "format": fmt,
+            "format": result.source_format,
             "name": result.name,
             "component_count": len(result.components),
             "flow_count": len(result.flows),
@@ -574,6 +569,24 @@ def memory_add(path: str | Path) -> ZephyrResult:
                         data=model.to_dict())
 
 
+def memory_refresh() -> ZephyrResult:
+    """Refresh changed/legacy entries; retain and report missing/invalid sources."""
+    try:
+        data = refresh_memory()
+    except ArchMemoryError as exc:
+        return ZephyrResult(
+            status="error", command="memory-refresh", source="", errors=[str(exc)]
+        )
+    warnings = [f"Missing source: {p}" for p in data["missing"]] + data["errors"]
+    return ZephyrResult(
+        status="warning" if warnings else "ok",
+        command="memory-refresh",
+        source="",
+        data=data,
+        warnings=warnings,
+    )
+
+
 def memory_remove(path: str | Path) -> ZephyrResult:
     """Remove an architecture from the memory index.
 
@@ -592,10 +605,15 @@ def memory_remove(path: str | Path) -> ZephyrResult:
 def memory_list() -> ZephyrResult:
     """List all indexed architectures in the memory store.
 
-    Read-only. Always returns status "ok".
+    Read-only. Corrupt/unreadable indexes return an error envelope.
     data keys: models (list of indexed model dicts).
     """
-    models = list_memory()
+    try:
+        models = list_memory()
+    except ArchMemoryError as exc:
+        return ZephyrResult(
+            status="error", command="memory-list", source="", errors=[str(exc)]
+        )
     return ZephyrResult(
         status="ok",
         command="memory-list",
@@ -610,7 +628,12 @@ def memory_search(query: str, top_k: int = 10) -> ZephyrResult:
     Read-only. Returns results sorted by descending similarity.
     data keys: query, results (list of {model, similarity, matched_terms}).
     """
-    results = search_memory(query, top_k=top_k)
+    try:
+        results = search_memory(query, top_k=top_k)
+    except ArchMemoryError as exc:
+        return ZephyrResult(
+            status="error", command="memory-search", source="", errors=[str(exc)]
+        )
     return ZephyrResult(
         status="ok",
         command="memory-search",
@@ -625,7 +648,7 @@ def memory_compare(
 ) -> ZephyrResult:
     """Cross-project structural comparison between two architecture models.
 
-    Read-only. Returns shared/unique component types, Jaccard similarity,
+    Read-only. Returns shared/unique component types, typed topology similarity,
     architectural pattern comparison, and shared risk themes.
     """
     a, b = str(path_a), str(path_b)

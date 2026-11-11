@@ -6,7 +6,8 @@ Reference for agents, MCP servers, and scripts that call Zephyr commands.
 
 ## JSON Envelope — `zephyr-result.v1`
 
-All `--json` outputs use a shared envelope:
+All `--json` outputs use a shared envelope. The authoritative operation registry is
+`zephyr/contracts.py`; the Python API is `zephyr/runtime.py`.
 
 ```json
 {
@@ -16,7 +17,7 @@ All `--json` outputs use a shared envelope:
   "data": { ... },
   "artifacts": [ { "type": "...", ... } ],
   "metadata": {
-    "command": "validate" | "summary" | "diagram" | "diff" | "search",
+    "command": "<operation identifier>",
     "source": "<path>",
     "schema_version": "zephyr-result.v1"
   }
@@ -189,6 +190,11 @@ These commands produce files. Callers must have explicit write intent before inv
 | `diagram <file> --output <path>` | Diagram file at `<path>`        | Also returns JSON envelope with `--json` |
 | `run <file> --output-dir <dir>`  | Diagram file in `<dir>/`        | No `--json` flag; human-readable only   |
 | `init [--output <path>]`         | New YAML architecture file      | Interactive wizard; no `--json`         |
+| `import <file> --output <path>` | Imported YAML | Always validates before writing |
+| `report <file> --output <path>` | Markdown or HTML report | Explicit output path |
+| `memory add/remove/refresh` | `.zephyr/memory/index.json` in cwd | Modifies the shared local index |
+| `snapshot save <tag> <file>` | Snapshot YAML plus index | Two files under the model directory |
+| `snapshot delete <tag> <file>` | Removes snapshot and updates index | Destructive; forbidden for autonomous calls |
 | `add <file>`                     | Modifies existing YAML in place | Interactive; no `--json`                |
 
 ### Guardrails for write operations
@@ -228,3 +234,45 @@ Use `zephyr reference` (human-readable) or parse directly for valid field values
 | `component.lifecycle` | `planned`, `active`, `deprecated`                                                             |
 | `meta.criticality` | `low`, `medium`, `high`, `mission-critical`                                                     |
 | `meta.environment` | `prod`, `test`, `dev`                                                                           |
+
+
+## Extended runtime operations
+
+| Runtime API | Contract key | Effect |
+| --- | --- | --- |
+| `analyze_model`, `review_model`, `explain_risk_model` | `analyze`, `review`, `explain` | Read-only |
+| `review_template_model`, `list_templates_model` | `review`, `review_templates` | Read-only |
+| `govern_model`, `impact_models`, `history_model` | `govern`, `impact`, `history` | Read-only |
+| `import_diagram_model` | `import_stdout` / `import_file` | Read-only without output, otherwise writes YAML |
+| `snapshot_save` | `snapshot_save` | Copies YAML and updates snapshot index; duplicate tags fail |
+| `snapshot_list`, `snapshot_diff`, `snapshot_impact` | Same names | Read-only |
+| `snapshot_delete` | `snapshot_delete` | Destructive; explicit intent required |
+| `memory_add`, `memory_remove`, `memory_refresh` | Same names | Write local memory index |
+| `memory_list`, `memory_search`, `memory_compare` | Same names | Read-only |
+
+Contracts classify operations; callers must enforce write intent. They are not an
+execution sandbox. Snapshot save writes two files, so the old one-file guarantee
+applies only to individual diagram/report/import output operations.
+
+Import auto-detects Mermaid/draw.io text or bounded raster input. `data.format` is the
+detected source format (`mermaid`, `drawio`, or `raster`). Invalid imports and output
+I/O failures return `status: error`. Validation happens before any output write.
+The CLI retains `--validate` for compatibility; imported models are always validated.
+
+Diff adds `data.architecture` and `data.trust_boundaries` arrays to the existing envelope.
+Risk objects may include `components`, `flows` and `controls` references. Risk explanation
+includes `controls` and only explicitly referenced components/flows. Unlinked legacy risks
+remain valid and have empty scope; they are not assigned guessed components.
+
+Memory entries add `source_hash` and `source_status` (`current`, `changed`, `missing`,
+`unreadable`, `unknown`). Legacy indexes load with unknown freshness. Reads do not rewrite
+the index. `memory refresh --json` returns `updated`, `missing`, and `errors`; skipped
+sources produce warning status and are retained. It does not delete files or entries.
+Memory comparison reports `similarity_method: typed-directed-neighborhood-multiset-v1`.
+This uses two-hop graph fingerprints and weighted Jaccard over their counts, not an
+isomorphism proof. Keyword search remains lexical; it has no embedding provider.
+
+CLI impact and snapshot impact exit 1 for high/critical findings although the envelope
+status is `warning`; governance exits 1 for error-level violations. Diff/snapshot diff
+exit 1 when changed. Usage errors exit 2. Other successful warnings exit 0. CLI memory add/remove are human
+output; their Python runtime equivalents return the JSON envelope.

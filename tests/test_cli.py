@@ -326,3 +326,28 @@ def test_run_command_reports_warnings_when_present(tmp_path: Path) -> None:
     assert result.returncode == 0
     assert "Warnings:" in result.stdout
     assert "Validation passed with warnings" in result.stdout
+
+
+def test_memory_missing_subcommand_reports_usage_error() -> None:
+    result = run_cli("memory")
+    assert result.returncode == 2
+    assert "requires a subcommand" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_snapshot_missing_subcommand_reports_usage_error() -> None:
+    result = run_cli("snapshot")
+    assert result.returncode == 2
+    assert "requires a subcommand" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_import_validation_error_preserves_existing_output(tmp_path: Path) -> None:
+    source = tmp_path / "bad.mmd"
+    source.write_text("not a diagram")
+    output = tmp_path / "existing.yaml"
+    output.write_text("original")
+    result = run_cli("import", str(source), "--output", str(output), "--json")
+    assert result.returncode == 1
+    assert json.loads(result.stdout)["status"] == "error"
+    assert output.read_text() == "original"

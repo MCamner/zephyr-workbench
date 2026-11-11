@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- Complete model diffs: architecture text, component descriptions/tags/boundaries, trust-boundary definitions, control descriptions, mitigation and risk references. History counts these changes.
+- Add validated risk references (`components`, `flows`, `controls`); explanations use explicit scope instead of guessing from criticality.
+- Detect removed mitigation in change impact analysis.
+- Fix image runtime import; validate imports before writing and return structured errors through CLI/runtime.
+- Add experimental local raster recognition for rectangular boxes and straight centered arrows, with OCR labels and explicit limitations.
+- Add source hashes/status to memory entries and `memory refresh`; compare typed directed topology rather than only component-type sets. Older indexes remain readable and report unknown freshness until refreshed.
+- Classify all runtime operations in tool contracts, including snapshot and memory write effects.
+- Persist browser drafts, recover after reload, preserve corrupt storage and show storage errors/conflicts.
+- Isolate runtime memory tests; add browser diff, reference and draft recovery checks.
+
 ## [0.6.0] — 2026-06-04
 
 - `zephyr/memory.py`: semantic architecture memory with keyword-based architecture vector indexing, add/remove/list/search operations, and cross-project comparison.

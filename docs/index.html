@@ -10,6 +10,7 @@
 <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
 <script src="zephyr-core.js"></script>
+<script src="drafts.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -764,6 +765,8 @@ function DiffPanel({currentData}){
     reader.onload=ev=>{
       try{
         const parsed=jsyaml.load(ev.target.result);
+        const validation=Z.validate(parsed);
+        if(validation.errors.length)throw Error(validation.errors.join("; "));
         setFileB(parsed);setFileNameB(f.name);setDiffError(null);setDiffResult(null);
       }catch(err){setDiffError("Could not parse: "+err.message);}
     };
@@ -776,7 +779,7 @@ function DiffPanel({currentData}){
     catch(e){setDiffError(e.message);}
   }
 
-  const total=diffResult?(diffResult.components.length+diffResult.flows.length+diffResult.risks.length):0;
+  const total=diffResult?(Object.values(diffResult).reduce((n,rows)=>n+rows.length,0)):0;
   return (
     <div className="panel-body">
       <div className="diff-upload-row">
@@ -799,7 +802,7 @@ function DiffPanel({currentData}){
           <div style={{marginBottom:16,fontSize:12,color:"var(--text2)"}}>
             {total===0?<span style={{color:"var(--green)"}}>✓ Models are identical</span>:<span>{total} change{total!==1?"s":""} detected</span>}
           </div>
-          {["components","flows","risks"].map(section=>{
+          {["architecture","meta","components","flows","risks","controls","stakeholders","trust_boundaries"].map(section=>{
             const rows=diffResult[section];
             if(!rows?.length)return null;
             return (
@@ -908,7 +911,22 @@ function dataToYaml(data){
 // ── App ───────────────────────────────────────────────────────────────────────
 function App(){
   const [tab,setTab]=useState("editor");
+  const restored=useMemo(()=>{
+    try{return ZephyrDrafts.load(window.localStorage);}
+    catch(e){return {workspace:null,error:"Draft recovery failed: "+e.message};}
+  },[]);
+  const [storageError,setStorageError]=useState(restored.error);
+  const [storageBlocked,setStorageBlocked]=useState(Boolean(restored.error));
   const initialFile=useMemo(()=>{
+    if(restored.workspace){
+      fileCounter=Math.max(fileCounter,...restored.workspace.files.map(f=>f.id+1));
+      return restored.workspace.files.map(f=>{
+      let parsed=null,validationState=null;
+      try{parsed=jsyaml.load(f.yaml);validationState=Z.validate(parsed);}
+      catch(e){validationState={errors:["YAML parse error: "+e.message],warnings:[]};}
+      return {...f,parsed,validationState};
+      });
+    }
     const name="macos-intune-windows-domain.yaml";
     let parsed=null,vs=null;
     try{parsed=jsyaml.load(EXAMPLE_YAML);vs=Z.validate(parsed);}
@@ -917,7 +935,31 @@ function App(){
   },[]);
 
   const [files,setFiles]=useState(initialFile);
-  const [activeFileId,setActiveFileId]=useState(1);
+  const [activeFileId,setActiveFileId]=useState(restored.workspace?.activeFileId||1);
+
+  useEffect(()=>{
+    if(storageBlocked)return;
+    function persist(){
+      let error=null;
+      try{error=ZephyrDrafts.save(window.localStorage,{files,activeFileId});}
+      catch(e){error="Draft saving failed: "+e.message;}
+      setStorageError(error);
+    }
+    const timer=setTimeout(persist,300);
+    window.addEventListener("beforeunload",persist);
+    return ()=>{clearTimeout(timer);window.removeEventListener("beforeunload",persist);};
+  },[files,activeFileId,storageBlocked]);
+
+  useEffect(()=>{
+    function changed(event){
+      if(event.key===ZephyrDrafts.key){
+        setStorageBlocked(true);
+        setStorageError("Saved drafts changed in another tab. Export your work before replacing them.");
+      }
+    }
+    window.addEventListener("storage",changed);
+    return ()=>window.removeEventListener("storage",changed);
+  },[]);
   const [drawer,setDrawer]=useState(null); // {kind, index, item}
   const loadFileRef=useRef(null);
 
@@ -1023,6 +1065,10 @@ function App(){
         onNewFile={handleNewFile} onLoadFile={handleLoadFile} validationState={vs}/>
       <div className="main">
         <Topbar filename={activeFile?.name} tab={tab} setTab={setTab} validationState={vs}/>
+        <div role="status" style={{padding:"6px 16px",fontSize:12,color:storageError?"var(--amber)":"var(--text3)"}}>
+          {storageError||"Drafts saved locally in this browser. Export YAML for a durable copy."}
+          {storageBlocked&&<button onClick={()=>{setStorageBlocked(false);setStorageError(null);}}>Replace saved drafts with this workspace</button>}
+        </div>
         <div className="content-area">
           {tab==="editor"    && <EditorPanel yaml={activeFile?.yaml||""} setYaml={updateActiveYaml} onRun={handleRun} onExport={handleExport} validationState={vs}/>}
           {tab==="validate"  && <ValidatePanel validationState={vs}/>}

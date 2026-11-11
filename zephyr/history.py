@@ -113,7 +113,8 @@ def analyze_history(path: str) -> HistoryReport:
             diff = diff_architectures(prev_arch, arch)
             total_changes = (
                 len(diff.components) + len(diff.flows) +
-                len(diff.risks) + len(diff.controls) + len(diff.stakeholders)
+                len(diff.risks) + len(diff.controls) + len(diff.stakeholders) +
+                len(diff.architecture) + len(diff.trust_boundaries) + int(diff.meta is not None)
             )
             try:
                 impact = analyze_impact(prev_arch, arch, diff)

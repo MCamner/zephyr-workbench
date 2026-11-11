@@ -26,16 +26,22 @@ class ArchitectureDiff:
     risks: list[Change]
     controls: list[Change]
     stakeholders: list[Change]
+    architecture: list[Change] = field(default_factory=list)
+    trust_boundaries: list[Change] = field(default_factory=list)
 
     def is_empty(self) -> bool:
-        return not any([
-            self.meta,
-            self.components,
-            self.flows,
-            self.risks,
-            self.controls,
-            self.stakeholders,
-        ])
+        return not any(
+            [
+                self.architecture,
+                self.trust_boundaries,
+                self.meta,
+                self.components,
+                self.flows,
+                self.risks,
+                self.controls,
+                self.stakeholders,
+            ]
+        )
 
 
 def diff_architectures(
@@ -47,6 +53,15 @@ def diff_architectures(
     return ArchitectureDiff(
         source=source,
         target=target,
+        architecture=_diff_named(
+            [a],
+            [b],
+            ("name", "description", "domains", "rules"),
+            key=lambda x: "architecture",
+        ),
+        trust_boundaries=_diff_named(
+            a.trust_boundaries, b.trust_boundaries, ("description", "color")
+        ),
         meta=_diff_meta(a.meta, b.meta),
         components=_diff_components(a.components, b.components),
         flows=_diff_flows(a.flows, b.flows),
@@ -72,6 +87,8 @@ def format_diff(diff: ArchitectureDiff) -> str:
         lines.append("")
 
     sections = [
+        ("Architecture", diff.architecture),
+        ("Trust boundaries", diff.trust_boundaries),
         ("Components", diff.components),
         ("Flows", diff.flows),
         ("Risks", diff.risks),
@@ -116,8 +133,18 @@ def _diff_components(old: list[Component], new: list[Component]) -> list[Change]
             changes.append(Change(status="added", label=f"{name} ({item.type})"))
         else:
             modified = _field_changes(
-                old_map[name], item,
-                ("type", "domain", "criticality", "exposure", "lifecycle"),
+                old_map[name],
+                item,
+                (
+                    "type",
+                    "description",
+                    "domain",
+                    "criticality",
+                    "exposure",
+                    "lifecycle",
+                    "trust_boundary",
+                    "tags",
+                ),
             )
             if modified:
                 changes.append(Change(status="modified", label=name, fields=modified))
@@ -167,8 +194,19 @@ def _diff_risks(old: list[Risk], new: list[Risk]) -> list[Change]:
             changes.append(Change(status="added", label=f"{rid}: {item.title} [{item.severity}]"))
         else:
             modified = _field_changes(
-                old_map[rid], item,
-                ("title", "severity", "likelihood", "impact"),
+                old_map[rid],
+                item,
+                (
+                    "title",
+                    "description",
+                    "severity",
+                    "likelihood",
+                    "impact",
+                    "mitigation",
+                    "components",
+                    "flows",
+                    "controls",
+                ),
             )
             if modified:
                 changes.append(Change(status="modified", label=f"{rid}: {item.title}", fields=modified))
@@ -190,7 +228,7 @@ def _diff_controls(old: list[Control], new: list[Control]) -> list[Change]:
             changes.append(Change(status="added", label=f"{name} [{item.type}]"))
         else:
             o, n = old_map[name], item
-            modified: list[tuple[str, str, str]] = []
+            modified = _field_changes(o, n, ("description",))
             if o.type != n.type:
                 modified.append(("type", o.type, n.type))
             old_targets = ", ".join(o.applies_to)
@@ -249,3 +287,19 @@ def _field_changes(old, new, attrs: tuple[str, ...]) -> list[tuple[str, str, str
         if ov != nv:
             result.append((attr, ov, nv))
     return result
+
+
+def _diff_named(old, new, attrs, key=lambda x: x.name) -> list[Change]:
+    old_map = {key(item): item for item in old}
+    new_map = {key(item): item for item in new}
+    changes = []
+    for name in sorted(old_map.keys() | new_map.keys()):
+        if name not in old_map:
+            changes.append(Change("added", name))
+        elif name not in new_map:
+            changes.append(Change("removed", name))
+        else:
+            fields = _field_changes(old_map[name], new_map[name], attrs)
+            if fields:
+                changes.append(Change("modified", name, fields))
+    return changes
