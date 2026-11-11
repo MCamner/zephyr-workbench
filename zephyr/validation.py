@@ -416,6 +416,47 @@ def validate_architecture_data(data: dict[str, Any]) -> None:
                 f"{location}.role '{stakeholder_role}' is invalid; expected one of: {allowed}"
             )
 
+    # Risk scope is explicit. Validate references only after collection shapes are known.
+    control_names = {
+        c.get("name")
+        for c in controls
+        if isinstance(c, dict) and isinstance(c.get("name"), str)
+    }
+    flow_keys = {
+        (f.get("from"), f.get("to"), f.get("label", ""))
+        for f in flows
+        if isinstance(f, dict)
+        and all(isinstance(f.get(k, ""), str) for k in ("from", "to", "label"))
+    }
+    for index, risk in enumerate(risks, start=1):
+        if not isinstance(risk, dict):
+            continue
+        for field, targets in (
+            ("components", component_names),
+            ("controls", control_names),
+        ):
+            refs = risk.get(field, [])
+            if not isinstance(refs, list):
+                errors.append(f"risks[{index}].{field} must be a list")
+                continue
+            for ref in refs:
+                if not isinstance(ref, str) or ref not in targets:
+                    errors.append(f"risks[{index}].{field}: unknown reference {ref!r}")
+        refs = risk.get("flows", [])
+        if not isinstance(refs, list):
+            errors.append(f"risks[{index}].flows must be a list")
+            continue
+        for ref in refs:
+            if (
+                not isinstance(ref, dict)
+                or not all(
+                    isinstance(ref.get(k, ""), str) for k in ("from", "to", "label")
+                )
+                or (ref.get("from"), ref.get("to"), ref.get("label", ""))
+                not in flow_keys
+            ):
+                errors.append(f"risks[{index}].flows: unknown flow reference {ref!r}")
+
     if errors:
         raise ValidationError(errors)
 

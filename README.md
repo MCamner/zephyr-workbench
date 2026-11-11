@@ -86,6 +86,19 @@ Built for real-world architecture where **identity, endpoints, and trust boundar
 | `zephyr search <file> <query>` | Filter by field, e.g. `type=endpoint`, `severity=high`, `missing=mitigation` |
 | `zephyr init` | Create a new model (wizard or `--template <name>`) |
 | `zephyr templates` | List available starter templates |
+| `zephyr import <file>` | Import Mermaid/draw.io or a supported raster diagram |
+| `zephyr analyze <file>` | Explain patterns, dependencies and improvement suggestions |
+| `zephyr review <file>` | Rule-based review; `--template` selects a focused checklist |
+| `zephyr review-templates` | List security, zero-trust, resilience and compliance checklists |
+| `zephyr explain <file> <risk-id>` | Explain a risk using its explicit references |
+| `zephyr score <file>` | Score model quality across five dimensions |
+| `zephyr lifecycle <file>` | Find deprecated-in-use and disconnected planned components |
+| `zephyr report <file>` | Generate a Markdown or HTML review report |
+| `zephyr impact <before> <after>` | Assess changes; exits 1 for high/critical impact |
+| `zephyr govern <policy> <file>` | Apply governance policy; exits 1 for error violations |
+| `zephyr snapshot save/list/diff/impact/delete` | Manage named model snapshots |
+| `zephyr history <file>` | Show snapshot scores and evolution |
+| `zephyr memory add/remove/list/search/compare/refresh` | Index models, inspect freshness and compare typed topology |
 | `zephyr reference` | Show all valid field values |
 | `zephyr help` | Full usage guide |
 
@@ -100,6 +113,50 @@ zephyr diagram <file> --format png         # PNG export (requires mmdc)
 ```
 
 ---
+
+## Reviews, memory and browser drafts
+
+```bash
+zephyr review examples/secure-workplace.yaml --template security --json
+zephyr report examples/secure-workplace.yaml --format md
+zephyr govern examples/governance-policy.yaml examples/secure-workplace.yaml --json
+zephyr memory add examples/identity-flow.yaml
+zephyr memory list --json
+zephyr memory refresh --json
+```
+
+Analysis and reviews are deterministic rules, not an LLM or a compliance certification.
+Memory search matches keywords; it does not use embeddings or understand synonyms.
+Entries report `current`, `changed`, `missing`, `unreadable`, or `unknown` source status.
+Use `memory refresh` to reindex changed/legacy entries. Missing or invalid sources remain
+visible and are reported rather than removed silently.
+Comparison uses typed directed graph features and two-hop neighborhoods, including
+node/edge multiplicity and flow security attributes. It is a bounded similarity metric,
+not proof that two graphs are equivalent; scores differ from earlier type-only comparisons.
+
+The browser workbench saves YAML drafts and the active file in local storage, including
+invalid work in progress. Reload restores them. Storage failures and changes from another
+tab are shown explicitly. Corrupt saved data is preserved until you choose to replace it.
+Export YAML for a durable copy; clearing browser storage removes drafts.
+Scoring, governance, history and memory workflows are available through the CLI/Python API.
+
+## Image import
+
+```bash
+pip install -e ".[image]"
+# Install the local Tesseract executable separately and ensure it is on PATH.
+zephyr import diagram.png --validate --json
+```
+
+Raster recognition is experimental: light background, dark rectangular boxes, and straight
+horizontal/vertical arrows through box centers; maximum 2500 pixels per side. Labels are
+read by local OCR and component types default to `application`. Lines without a detected
+arrow direction are omitted with a warning. Curved connectors, complex layouts and other
+shapes require manual modeling or Mermaid/draw.io input. Check every import against the
+image. Images of Mermaid/draw.io source text can also be read with OCR.
+Imports always validate the generated model before writing; failures return an error
+and leave the output untouched. See [tool contracts](docs/tool-contracts.md).
+
 
 ## Example output
 
@@ -184,6 +241,31 @@ rules:
 
 ---
 
+### Explicit risk scope
+
+Optional references make risk explanations traceable. Flow references use the same
+`from`, `to`, and optional `label` as the model's flow (include the label when present).
+Unknown references are validation errors. Older risks without references remain valid;
+Zephyr does not invent affected components for them.
+
+```yaml
+risks:
+  - id: R1
+    title: Unprotected access
+    severity: high
+    components: [api]
+    flows:
+      - from: client
+        to: api
+        label: request
+    controls: [require-mfa]
+    mitigation: Require MFA before access
+```
+
+The named components, flow and control must exist in the surrounding model.
+Diffs include descriptions, tags, trust boundaries, mitigation and risk references.
+
+
 ## Validation
 
 **Errors** block the pipeline:
@@ -218,7 +300,7 @@ zephyr/      CLI and core logic
   reference.py   Valid field values
 examples/    Sample architectures
 schemas/     Field reference (architecture.schema.yaml)
-tests/       129 tests
+tests/       pytest regression tests and browser-core checks
 docs/        Case studies and assets
 ```
 
@@ -258,7 +340,8 @@ See [ROADMAP.md](ROADMAP.md) for planned features.
 
 ## Security
 
-Zephyr runs locally. No data is sent anywhere.
+CLI analysis, OCR and model storage run locally. Browser pages and generated HTML diagrams
+load JavaScript libraries from external CDNs; they require network access for those assets.
 
 Do not commit secrets or credentials into schema files. Use environment variables or ignored local files for sensitive values.
 

@@ -5,7 +5,7 @@ safety guarantees each carries. Consumed by mq-mcp and other callers
 that need to classify tools before exposing them to agents.
 
 Read-only tools:  safe to call freely, no side effects
-Write-creating:   write exactly one file, no model rewrites, no autonomous changes
+Write-creating:   write only the files documented for each operation
 Forbidden:        must not be called autonomously (interactive or destructive)
 """
 
@@ -119,6 +119,48 @@ TOOLS: dict[str, ToolContract] = {
         json_supported=False,
     ),
 }
+
+# Keep every runtime surface classified; destructive operations stay forbidden.
+for _name in (
+    "analyze",
+    "review",
+    "explain",
+    "govern",
+    "impact",
+    "history",
+    "snapshot_list",
+    "snapshot_diff",
+    "snapshot_impact",
+    "memory_list",
+    "memory_search",
+    "memory_compare",
+    "review_templates",
+    "import_stdout",
+):
+    TOOLS[_name] = ToolContract(
+        _name, "read-only", "Return structured results without writes.", True, True
+    )
+for _name, _description in {
+    "import_file": "Write an imported YAML model to an explicit output path.",
+    "snapshot_save": "Copy a model and update its snapshot index (two files).",
+    "memory_add": "Create or update the local memory index.",
+    "memory_refresh": "Reindex changed sources in the local memory index.",
+    "memory_remove": "Remove an entry from the local memory index.",
+}.items():
+    TOOLS[_name] = ToolContract(
+        _name,
+        "write-creating",
+        _description,
+        _name not in {"snapshot_save", "memory_add", "memory_remove"},
+        True,
+    )
+TOOLS["snapshot_delete"] = ToolContract(
+    "snapshot_delete",
+    "forbidden",
+    "Delete a snapshot and update its index; requires explicit destructive intent.",
+    False,
+    True,
+)
 
 READ_ONLY = {k: v for k, v in TOOLS.items() if v.safety == "read-only"}
 WRITE_CREATING = {k: v for k, v in TOOLS.items() if v.safety == "write-creating"}

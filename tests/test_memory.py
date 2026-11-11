@@ -55,8 +55,8 @@ def _arch_a() -> Architecture:
         components=[
             Component(name="gw", type="access-gateway", criticality="high",
                       description="API Gateway", exposure="external"),
-            Component(name="api", type="service", criticality="high", description="Main API"),
-            Component(name="db", type="data-store", criticality="medium", description="DB"),
+            Component(name="api", type="application", criticality="high", description="Main API"),
+            Component(name="db", type="on-prem-resource", domain="data", criticality="medium", description="DB"),
         ],
         flows=[Flow(source="gw", target="api"), Flow(source="api", target="db")],
         trust_boundaries=[TrustBoundary(name="dmz")],
@@ -72,10 +72,10 @@ def _arch_b() -> Architecture:
         components=[
             Component(name="idp", type="identity-provider", criticality="high",
                       description="Identity provider"),
-            Component(name="svc1", type="service", criticality="medium"),
-            Component(name="svc2", type="service", criticality="medium"),
-            Component(name="svc3", type="service", criticality="low"),
-            Component(name="cache", type="cache", criticality="low"),
+            Component(name="svc1", type="application", criticality="medium"),
+            Component(name="svc2", type="application", criticality="medium"),
+            Component(name="svc3", type="application", criticality="low"),
+            Component(name="cache", type="on-prem-resource", criticality="low"),
         ],
         flows=[
             Flow(source="svc1", target="svc2"),
@@ -110,7 +110,7 @@ def test_extract_keywords_returns_sorted_list():
 
 def test_extract_keywords_includes_component_types():
     kws = extract_keywords(_arch_a())
-    assert "service" in kws or "api" in kws
+    assert "application" in kws or "api" in kws
 
 
 def test_extract_keywords_includes_arch_name():
@@ -283,12 +283,12 @@ def test_compare_returns_comparison_result():
 
 def test_compare_shared_service_type():
     result = compare_architectures(_arch_a(), _arch_b())
-    assert "service" in result.shared_component_types
+    assert "application" in result.shared_component_types
 
 
 def test_compare_unique_to_a():
     result = compare_architectures(_arch_a(), _arch_b())
-    assert "access-gateway" in result.unique_to_a or "data-store" in result.unique_to_a
+    assert "access-gateway" in result.unique_to_a or "on-prem-resource" in result.unique_to_a
 
 
 def test_compare_unique_to_b():
@@ -349,6 +349,11 @@ def test_format_comparison_contains_similarity():
     result = compare_architectures(_arch_a(), _arch_b())
     text = format_comparison(result)
     assert "%" in text
+
+
+@pytest.fixture(autouse=True)
+def isolated_memory(monkeypatch, tmp_path):
+    monkeypatch.setattr("zephyr.memory.default_index_dir", lambda: tmp_path / "memory")
 
 
 # ── runtime functions ─────────────────────────────────────────────────────────

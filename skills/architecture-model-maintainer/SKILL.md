@@ -58,3 +58,15 @@ pytest -q tests/test_validation.py tests/test_rules.py tests/test_templates.py t
 - Prefer warnings for risky patterns and errors for impossible or structurally invalid models.
 - Keep Mermaid output deterministic so tests and diffs stay useful.
 - Preserve existing YAML style and naming conventions in examples.
+
+## Regression gates from the reliability review
+
+- Compare every persisted model field, including architecture `domains`/`rules`, risk mitigation/scope, component tags/boundaries and boundary definitions. Check Python/JS diffs, JSON serialization and history counts together.
+- Risk scope is explicit: `components` names, `flows` objects (`from`, `to`, optional `label`), and `controls` names. Reject unknown references. Legacy risks may have empty scope; do not infer affected systems from criticality.
+- Import must validate before writing and return an error envelope on failure. Raster recognition is bounded to rectangular boxes and straight centered arrows; use a real OCR smoke check before claiming recognition works. Unsupported shapes and unclear directions require review, not invented connections.
+- Memory tests must isolate the default index. Search is keyword overlap; freshness uses source hashes. Graph similarity uses typed directed two-hop fingerprints, not an isomorphism proof.
+- Register new runtime operations in `zephyr/contracts.py`, including exact write effects. A classification does not enforce authorization itself.
+
+Evidence: `tests/test_review_regressions.py`, `tests/test_image_import.py`, `tests/browser_core.cjs`.
+Run these alongside the affected module tests. Use this workflow for model/runtime changes;
+a README-only wording correction needs only a check against the implemented behavior.

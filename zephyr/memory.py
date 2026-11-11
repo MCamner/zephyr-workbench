@@ -1,14 +1,8 @@
 """Zephyr Architecture Semantic Memory.
 
-Maintains a multi-model index that enables semantic search and cross-project
-comparison across architecture YAML files. The index is a lightweight
-keyword-based "vector" store (no ML dependencies) — each model is represented
-as a bag of extracted terms, and similarity is computed as term-overlap score.
-
-v0.6.0 capabilities:
-  Architecture vector indexing   — keyword extraction and index storage
-  Semantic architecture memory   — multi-model index with add/remove/list
-  Cross-project comparison       — structural similarity and pattern divergence
+Maintains a local multi-model keyword index (no ML dependencies).
+Search uses term overlap; comparison uses typed directed graph features.
+Entries expose current/changed/missing/unreadable/unknown source status.
 
 Index location: .zephyr/memory/index.json (relative to working directory,
 or an explicit directory passed to each function).
@@ -25,7 +19,11 @@ Entry points:
 from __future__ import annotations
 
 import json
+import hashlib
+from collections import Counter
 import re
+import os
+import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -49,6 +47,8 @@ class IndexedModel:
     keywords: list[str]          # extracted search terms
     score: int | None
     grade: str | None
+    source_hash: str = ""
+    source_status: str = "unknown"
 
     def to_dict(self) -> dict:
         return {
@@ -62,6 +62,8 @@ class IndexedModel:
             "keywords": self.keywords,
             "score": self.score,
             "grade": self.grade,
+            "source_hash": self.source_hash,
+            "source_status": self.source_status,
         }
 
     @classmethod
@@ -77,6 +79,7 @@ class IndexedModel:
             keywords=d.get("keywords", []),
             score=d.get("score"),
             grade=d.get("grade"),
+            source_hash=d.get("source_hash", ""),
         )
 
 
@@ -106,6 +109,7 @@ class ComparisonResult:
     patterns_a: list[str]
     patterns_b: list[str]
     summary: str
+    similarity_method: str = "typed-directed-neighborhood-multiset-v1"
 
     def to_dict(self) -> dict:
         return {
@@ -115,6 +119,7 @@ class ComparisonResult:
             "unique_to_a": self.unique_to_a,
             "unique_to_b": self.unique_to_b,
             "structural_similarity": round(self.structural_similarity, 3),
+            "similarity_method": self.similarity_method,
             "shared_risk_themes": self.shared_risk_themes,
             "patterns_a": self.patterns_a,
             "patterns_b": self.patterns_b,
@@ -141,14 +146,29 @@ def _load_index(index_dir: Path | None) -> list[IndexedModel]:
     p = _index_path(index_dir)
     if not p.exists():
         return []
-    entries = json.loads(p.read_text(encoding="utf-8"))
-    return [IndexedModel.from_dict(e) for e in entries]
+    try:
+        entries = json.loads(p.read_text(encoding="utf-8"))
+        return [IndexedModel.from_dict(e) for e in entries]
+    except (OSError, ValueError, TypeError, KeyError) as exc:
+        raise MemoryError(f"Cannot read memory index: {exc}") from exc
 
 
 def _save_index(models: list[IndexedModel], index_dir: Path | None) -> None:
     p = _index_path(index_dir)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps([m.to_dict() for m in models], indent=2), encoding="utf-8")
+    temporary = None
+    try:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=p.parent, delete=False
+        ) as stream:
+            temporary = Path(stream.name)
+            json.dump([m.to_dict() for m in models], stream, indent=2)
+        os.replace(temporary, p)
+    except OSError as exc:
+        raise MemoryError(f"Cannot write memory index: {exc}") from exc
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 # ── Keyword extraction ("vector indexing") ────────────────────────────────────
@@ -220,6 +240,9 @@ def add_to_memory(
     p = Path(path).resolve()
     try:
         data = load_architecture_data(str(p))
+        from zephyr.validation import validate_architecture_data
+
+        validate_architecture_data(data)
         arch = architecture_from_data(data)
     except Exception as exc:
         raise MemoryError(f"Cannot load architecture '{path}': {exc}") from exc
@@ -233,6 +256,8 @@ def add_to_memory(
         grade_val = None
 
     model = IndexedModel(
+        source_hash=hashlib.sha256(p.read_bytes()).hexdigest(),
+        source_status="current",
         path=str(p),
         name=arch.name,
         indexed_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -265,7 +290,37 @@ def remove_from_memory(path: str | Path, index_dir: Path | None = None) -> None:
 
 def list_memory(index_dir: Path | None = None) -> list[IndexedModel]:
     """Return all indexed models, sorted by name."""
-    return sorted(_load_index(index_dir), key=lambda m: m.name.lower())
+    models = _load_index(index_dir)
+    for model in models:
+        try:
+            digest = hashlib.sha256(Path(model.path).read_bytes()).hexdigest()
+            model.source_status = (
+                "unknown"
+                if not model.source_hash
+                else "current"
+                if digest == model.source_hash
+                else "changed"
+            )
+        except FileNotFoundError:
+            model.source_status = "missing"
+        except OSError:
+            model.source_status = "unreadable"
+    return sorted(models, key=lambda m: m.name.lower())
+
+
+def refresh_memory(index_dir: Path | None = None) -> dict:
+    """Explicitly reindex changed/legacy files without deleting missing entries."""
+    result = {"updated": [], "missing": [], "errors": []}
+    for model in list_memory(index_dir):
+        if model.source_status == "missing":
+            result["missing"].append(model.path)
+        elif model.source_status != "current":
+            try:
+                add_to_memory(model.path, index_dir)
+                result["updated"].append(model.path)
+            except MemoryError as exc:
+                result["errors"].append(str(exc))
+    return result
 
 
 def search_memory(
@@ -283,7 +338,7 @@ def search_memory(
         return []
 
     results: list[SearchResult] = []
-    for model in _load_index(index_dir):
+    for model in list_memory(index_dir):
         model_terms = set(model.keywords)
         matched = sorted(query_terms & model_terms)
         # Also boost for component_type exact matches
@@ -302,17 +357,35 @@ def search_memory(
 # ── Architectural pattern detection ──────────────────────────────────────────
 
 _PATTERN_CHECKS = [
-    ("gateway-backed",     lambda a: any(c.type == "access-gateway" for c in a.components)),
-    ("identity-driven",    lambda a: any(c.type in {
-        "identity", "identity-provider", "cloud-identity", "on-prem-identity"}
-        for c in a.components)),
-    ("data-centric",       lambda a: any(c.type == "data-store" for c in a.components)),
-    ("zero-trust-capable", lambda a: bool(a.trust_boundaries) and any(
-        c.type == "access-gateway" for c in a.components)),
-    ("microservices",      lambda a: sum(1 for c in a.components if c.type == "service") >= 3),
-    ("risk-modelled",      lambda a: len(a.risks) >= 2),
-    ("control-rich",       lambda a: len(a.controls) >= 3),
-    ("external-facing",    lambda a: any(c.exposure == "external" for c in a.components)),
+    ("gateway-backed", lambda a: any(c.type == "access-gateway" for c in a.components)),
+    (
+        "identity-driven",
+        lambda a: any(
+            c.type
+            in {"identity", "identity-provider", "cloud-identity", "on-prem-identity"}
+            for c in a.components
+        ),
+    ),
+    (
+        "data-centric",
+        lambda a: any(
+            c.type == "on-prem-resource" and c.domain == "data" for c in a.components
+        ),
+    ),
+    (
+        "zero-trust-capable",
+        lambda a: (
+            bool(a.trust_boundaries)
+            and any(c.type == "access-gateway" for c in a.components)
+        ),
+    ),
+    (
+        "microservices",
+        lambda a: sum(1 for c in a.components if c.type == "application") >= 3,
+    ),
+    ("risk-modelled", lambda a: len(a.risks) >= 2),
+    ("control-rich", lambda a: len(a.controls) >= 3),
+    ("external-facing", lambda a: any(c.exposure == "external" for c in a.components)),
 ]
 
 
@@ -322,13 +395,46 @@ def detect_patterns(arch: Architecture) -> list[str]:
 
 # ── Cross-project comparison ──────────────────────────────────────────────────
 
+def _topology_features(arch: Architecture) -> Counter:
+    """Name-independent typed node/edge counts and two-hop neighborhoods.
+
+    A bounded graph fingerprint, not an isomorphism proof. Multiplicity,
+    direction and security attributes contribute to the similarity score.
+    """
+    labels = {c.name: c.type for c in arch.components}
+    edges = []
+    for f in arch.flows:
+        attrs = (f.protocol, f.authentication, f.encryption)
+        edges.append((f.source, f.target, attrs))
+        if f.direction == "bidirectional":
+            edges.append((f.target, f.source, attrs))
+    features = Counter(("node", c.type) for c in arch.components)
+    features.update(
+        ("edge", labels.get(a, "?"), labels.get(b, "?"), attrs) for a, b, attrs in edges
+    )
+    for depth in range(2):
+        next_labels = {}
+        for name, label in labels.items():
+            outgoing = sorted(
+                (labels.get(b, "?"), attrs) for a, b, attrs in edges if a == name
+            )
+            incoming = sorted(
+                (labels.get(a, "?"), attrs) for a, b, attrs in edges if b == name
+            )
+            signature = json.dumps([label, incoming, outgoing], separators=(",", ":"))
+            next_labels[name] = hashlib.sha256(signature.encode()).hexdigest()
+            features[("neighborhood", depth, next_labels[name])] += 1
+        labels = next_labels
+    return features
+
+
 def compare_architectures(
     arch_a: Architecture,
     arch_b: Architecture,
     name_a: str = "",
     name_b: str = "",
 ) -> ComparisonResult:
-    """Compare two architectures structurally and semantically."""
+    """Compare typed topology, detected patterns and risk-title keywords."""
     na = name_a or arch_a.name
     nb = name_b or arch_b.name
 
@@ -338,8 +444,9 @@ def compare_architectures(
     only_a = sorted(types_a - types_b)
     only_b = sorted(types_b - types_a)
 
-    union = types_a | types_b
-    jaccard = len(shared) / len(union) if union else 1.0
+    graph_a, graph_b = _topology_features(arch_a), _topology_features(arch_b)
+    union = sum((graph_a | graph_b).values())
+    jaccard = sum((graph_a & graph_b).values()) / union if union else 1.0
 
     # Shared risk themes (words from risk titles appearing in both)
     words_a = {w for r in arch_a.risks for w in _tokenize(r.title)}
@@ -398,7 +505,7 @@ def format_memory_list(models: list[IndexedModel]) -> str:
         score_str = f"  score {m.score} ({m.grade})" if m.score is not None else ""
         lines.append(
             f"  {m.name:<30} {m.component_count:>3} components  "
-            f"{m.risk_count:>2} risks{score_str}"
+            f"{m.risk_count:>2} risks{score_str}  [{m.source_status}]"
         )
         lines.append(f"    {m.path}")
     return "\n".join(lines)
@@ -410,7 +517,9 @@ def format_search_results(results: list[SearchResult], query: str) -> str:
     lines = [f"Search: '{query}'  ({len(results)} result(s))", ""]
     for r in results:
         sim_bar = "█" * round(r.similarity * 10) + "░" * (10 - round(r.similarity * 10))
-        lines.append(f"  {sim_bar}  {r.similarity:.0%}  {r.model.name}")
+        lines.append(
+            f"  {sim_bar}  {r.similarity:.0%}  {r.model.name}  [{r.model.source_status}]"
+        )
         lines.append(f"    Matched: {', '.join(r.matched_terms[:8])}")
         lines.append(f"    {r.model.path}")
     return "\n".join(lines)

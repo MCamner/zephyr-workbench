@@ -57,6 +57,9 @@ class Risk:
     mitigation: str = ""
     likelihood: str = ""
     impact: str = ""
+    components: List[str] = field(default_factory=list)
+    flows: List[dict[str, str]] = field(default_factory=list)
+    controls: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -84,3 +87,5 @@ class Architecture:
     controls: List[Control] = field(default_factory=list)
     stakeholders: List[Stakeholder] = field(default_factory=list)
     trust_boundaries: List[TrustBoundary] = field(default_factory=list)
+    domains: List[str] = field(default_factory=list)
+    rules: dict = field(default_factory=dict)

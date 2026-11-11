@@ -18,11 +18,11 @@ The long-term goal is to support:
 ## Current Focus
 
 Current: v0.6.0 — Semantic Architecture Memory.
-Next:    define v0.7.0.
+Next:    define v0.7.0 after validating the unreleased reliability changes.
 
 Focus on machine-readable outputs, safe tool boundaries, and validation-first execution before adding broader review automation.
 
-Current slice shipped: semantic architecture memory (`zephyr/memory.py`), named snapshots (`zephyr/snapshots.py`), history and evolution analysis (`zephyr/history.py`), plus CLI and runtime API coverage for memory, snapshot, and history workflows.
+Current slice shipped: local keyword architecture memory (`zephyr/memory.py`), named snapshots (`zephyr/snapshots.py`), history and evolution analysis (`zephyr/history.py`), plus CLI and runtime API coverage for memory, snapshot, and history workflows.
 
 ---
 
@@ -60,7 +60,7 @@ Introduce architecture cognition and semantic analysis.
 - [x] Architecture comparison (`diff_models` + semantic impact via `analyze_architecture`)
 - [x] Dependency reasoning (`dependency_insights()` — hub components, external reachable sets)
 - [x] Architecture risk analysis (`analyze_risks()` — distribution, unmitigated, incomplete definitions)
-- [x] AI-assisted architecture reviews (`review_architecture()` — rule-based findings in severity order)
+- [x] Rule-based architecture reviews (`review_architecture()` — deterministic findings in severity order)
 - [x] YAML improvement suggestions (`suggest_improvements()` — actionable, prioritized)
 - [x] Risk explanation workflows (`explain_risk()` — contextual risk explanation with affected components)
 - [x] Architecture anti-pattern detection (`detect_antipatterns()` — 7-pattern library)
@@ -98,7 +98,7 @@ Bridge visual architecture and structured architecture models.
 
 - [x] Mermaid reverse parsing
 - [x] draw.io import experiments
-- [x] Image-to-architecture workflows
+- [x] Bounded raster import: rectangular boxes, OCR labels and straight centered arrows (experimental)
 
 ### mq-image-analyze Integration
 
@@ -132,13 +132,30 @@ Mermaid / HTML / report output
 
 ## v0.6.0 — Semantic Architecture Memory
 
-- [x] Architecture vector indexing
-- [x] Semantic architecture memory
+- [x] Keyword architecture indexing
+- [x] Local architecture keyword memory
 - [x] Architecture history tracking
 - [x] Architecture evolution analysis
 - [x] Cross-project architecture comparison
 
 ---
+
+## Reliability improvements (unreleased)
+
+- [x] Complete modeled-field diff including risk scope and trust boundaries
+- [x] Explicit risk references to components, flows and controls
+- [x] Image runtime error envelopes and validation before writing
+- [x] Source freshness reporting and explicit `memory refresh`
+- [x] Typed directed topology similarity with multiplicity and two-hop neighborhoods
+- [x] Contracts covering all current runtime operations and write effects
+- [x] Browser draft persistence, recovery and visible storage errors
+- [x] Isolated memory tests and browser-core regression checks
+
+Remaining product limits: keyword search has no embeddings/synonym understanding;
+raster import is bounded and requires manual verification; browser views cover a subset
+of CLI capabilities. No claim of general diagram vision, graph isomorphism or automatic
+compliance certification is made.
+
 
 ## Long-Term Vision
 

@@ -145,6 +145,9 @@ Commands
     Index an architecture file into the semantic memory store.
     Re-running updates the existing entry.
 
+  memory refresh [--json]
+    Reindex changed sources and report missing files without removing entries.
+
   memory remove <file>
     Remove an architecture from the memory index.
 
@@ -155,8 +158,8 @@ Commands
     Semantic keyword search across all indexed architectures.
 
   memory compare <file-a> <file-b> [--json]
-    Cross-project structural comparison: shared types, unique patterns,
-    Jaccard similarity, and shared risk themes.
+    Cross-project structural comparison: typed topology, unique patterns,
+    neighborhood similarity, and shared risk themes.
 
   init
     Create a new model interactively (guided wizard).
@@ -171,7 +174,7 @@ Commands
     Import a diagram file (Mermaid or draw.io) and generate a Zephyr YAML model.
     • --format auto|mermaid|drawio   format (default: auto-detect from extension)
     • --output <path>                write YAML to file instead of stdout
-    • --validate                     validate the generated model after import
+    • --validate                     compatibility flag; imports always validate
     • --json                         output as machine-readable JSON envelope
 
   search <file> <query>
@@ -403,6 +406,8 @@ def _diff_to_dict(diff: ArchitectureDiff) -> dict:
         "source": diff.source,
         "target": diff.target,
         "changed": not diff.is_empty(),
+        "architecture": [_change_to_dict(c) for c in diff.architecture],
+        "trust_boundaries": [_change_to_dict(c) for c in diff.trust_boundaries],
         "meta": _change_to_dict(diff.meta) if diff.meta else None,
         "components": [_change_to_dict(c) for c in diff.components],
         "flows": [_change_to_dict(f) for f in diff.flows],
@@ -580,6 +585,13 @@ def _build_parser() -> argparse.ArgumentParser:
     mem_add = mem_sub.add_parser("add", help="Index an architecture file")
     mem_add.add_argument("file", metavar="FILE")
 
+    mem_refresh = mem_sub.add_parser(
+        "refresh", help="Reindex changed sources and report missing files"
+    )
+    mem_refresh.add_argument(
+        "--json", action="store_true", help="Output as JSON envelope"
+    )
+
     mem_remove = mem_sub.add_parser("remove", help="Remove an architecture from the index")
     mem_remove.add_argument("file", metavar="FILE")
 
@@ -650,7 +662,7 @@ def _build_parser() -> argparse.ArgumentParser:
     import_parser.add_argument(
         "--validate",
         action="store_true",
-        help="Validate the generated YAML after import",
+        help="Compatibility flag; imported models are always validated",
     )
     import_parser.add_argument(
         "--json",
@@ -930,80 +942,22 @@ def main() -> None:
             return
 
         if args.command == "import":
-            from zephyr.diagram_import import detect_format, parse_diagram
-            from zephyr.image_import import is_image_path, parse_image
-            import yaml as _yaml
+            from zephyr.runtime import import_diagram_model
 
-            src = Path(args.file)
-            if not src.exists():
-                print(f"File not found: {args.file}", file=sys.stderr)
-                raise SystemExit(1)
-
-            fmt = args.format if args.format != "auto" else detect_format(args.file)
-            if is_image_path(src):
-                image_format = None if args.format == "auto" else fmt
-                diagram_result = parse_image(src, image_format)
-            else:
-                diagram_result = parse_diagram(src.read_text(encoding="utf-8"), fmt)
-            yaml_str = diagram_result.to_yaml_string()
-
-            val_errors: list[str] = []
-            val_warnings: list[str] = []
-            if args.validate:
-                from zephyr.validation import validate_architecture_data, collect_validation_warnings
-                try:
-                    data = _yaml.safe_load(yaml_str)
-                    validate_architecture_data(data)
-                    val_warnings = collect_validation_warnings(data)
-                except ValidationError as ve:
-                    val_errors = ve.errors
-
-            all_warnings = diagram_result.warnings + val_warnings
-            status = "error" if val_errors else ("warning" if all_warnings else "ok")
-
+            result = import_diagram_model(args.file, args.format, args.output)
             if args.json:
-                import_artifact: dict = (
-                    {"type": "yaml", "format": "zephyr", "path": args.output}
-                    if args.output
-                    else {"type": "yaml", "format": "zephyr", "content": yaml_str}
-                )
-                if args.output:
-                    _write_text_output(yaml_str, args.output)
-                _print_json_result(
-                    _result_envelope(
-                        command="import",
-                        source=args.file,
-                        status=status,
-                        errors=val_errors,
-                        warnings=all_warnings,
-                        data={
-                            "format": fmt,
-                            "name": diagram_result.name,
-                            "component_count": len(diagram_result.components),
-                            "flow_count": len(diagram_result.flows),
-                            "trust_boundary_count": len(diagram_result.trust_boundaries),
-                        },
-                        artifacts=[import_artifact],
-                    )
-                )
+                _print_json_result(result.to_dict())
+            elif result.failed:
+                print("Import failed: " + "; ".join(result.errors), file=sys.stderr)
+            elif args.output:
+                print(f"Imported: {result.data['name']} → {args.output}")
+                if result.warnings:
+                    _print_warnings(result.warnings)
             else:
-                if args.output:
-                    _write_text_output(yaml_str, args.output)
-                    print(f"Imported: {diagram_result.name} → {args.output}")
-                    print(
-                        f"  {len(diagram_result.components)} component(s), "
-                        f"{len(diagram_result.flows)} flow(s), "
-                        f"{len(diagram_result.trust_boundaries)} trust boundary/ies"
-                    )
-                    if all_warnings:
-                        _print_warnings(all_warnings)
-                    if val_errors:
-                        print("Validation errors:", file=sys.stderr)
-                        for e in val_errors:
-                            print(f"  - {e}", file=sys.stderr)
-                else:
-                    print(yaml_str)
-            return
+                print(result.artifacts[0]["content"])
+                if result.warnings:
+                    print("Warnings: " + "; ".join(result.warnings), file=sys.stderr)
+            raise SystemExit(1 if result.failed else 0)
 
         if args.command == "add":
             raise SystemExit(run_add(args.file))
@@ -1232,6 +1186,7 @@ def main() -> None:
                             "mitigation": ctx.mitigation,
                             "affected_components": ctx.affected_components,
                             "affected_flows": ctx.affected_flows,
+                            "controls": ctx.controls,
                             "explanation": ctx.explanation,
                         },
                     )
@@ -1324,9 +1279,22 @@ def main() -> None:
             return
 
         if args.command == "memory":
+            if args.mem_action == "refresh":
+                from zephyr.runtime import memory_refresh
+
+                result = memory_refresh()
+                if args.json:
+                    _print_json_result(result.to_dict())
+                else:
+                    print(json.dumps(result.data, indent=2))
+                    if result.warnings:
+                        _print_warnings(result.warnings)
+                raise SystemExit(1 if result.failed else 0)
+
             if not getattr(args, "mem_action", None):
-                memory_parser.print_help()  # type: ignore[name-defined]
-                raise SystemExit(1)
+                parser.error(
+                    "memory requires a subcommand: add, remove, list, search, compare, refresh"
+                )
 
             if args.mem_action == "add":
                 try:
@@ -1347,36 +1315,23 @@ def main() -> None:
                     raise SystemExit(1) from exc
                 return
 
-            if args.mem_action == "list":
-                models = list_memory()
-                if args.json:
-                    _print_json_result(
-                        _result_envelope(
-                            command="memory-list",
-                            source="",
-                            status="ok",
-                            data={"models": [m.to_dict() for m in models]},
-                        )
-                    )
-                else:
-                    print(format_memory_list(models))
-                return
+            if args.mem_action in ("list", "search"):
+                from zephyr.runtime import memory_list, memory_search
 
-            if args.mem_action == "search":
-                results = search_memory(args.query)
+                result = (
+                    memory_list()
+                    if args.mem_action == "list"
+                    else memory_search(args.query)
+                )
                 if args.json:
-                    _print_json_result(
-                        _result_envelope(
-                            command="memory-search",
-                            source="",
-                            status="ok",
-                            data={"query": args.query,
-                                  "results": [r.to_dict() for r in results]},
-                        )
-                    )
+                    _print_json_result(result.to_dict())
+                elif result.failed:
+                    print("Error: " + "; ".join(result.errors), file=sys.stderr)
+                elif args.mem_action == "list":
+                    print(format_memory_list(list_memory()))
                 else:
-                    print(format_search_results(results, args.query))
-                return
+                    print(format_search_results(search_memory(args.query), args.query))
+                raise SystemExit(1 if result.failed else 0)
 
             if args.mem_action == "compare":
                 arch_a = load_architecture(args.file_a)
@@ -1398,8 +1353,9 @@ def main() -> None:
 
         if args.command == "snapshot":
             if not getattr(args, "snap_action", None):
-                snapshot_parser.print_help()  # type: ignore[name-defined]
-                raise SystemExit(1)
+                parser.error(
+                    "snapshot requires a subcommand: save, list, diff, impact, delete"
+                )
 
             if args.snap_action == "save":
                 try:

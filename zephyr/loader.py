@@ -57,6 +57,8 @@ def architecture_from_data(data: dict[str, Any]) -> Architecture:
     return Architecture(
         name=data["name"],
         description=data.get("description", ""),
+        domains=data.get("domains") or [],
+        rules=data.get("rules") or {},
         meta=_meta_from_data(data),
         trust_boundaries=[
             TrustBoundary(
@@ -101,6 +103,9 @@ def architecture_from_data(data: dict[str, Any]) -> Architecture:
                 mitigation=item.get("mitigation", ""),
                 likelihood=item.get("likelihood", ""),
                 impact=item.get("impact", ""),
+                components=item.get("components") or [],
+                flows=item.get("flows") or [],
+                controls=item.get("controls") or [],
             )
             for item in data.get("risks", [])
         ],

@@ -243,13 +243,21 @@ def analyze_impact(
                 ))
 
     # ── Unmitigated risks ────────────────────────────────────────────────────
-    after_risk_ids = {r.id for r in after.risks}
+    after_risks = {r.id: r for r in after.risks}
     unmitigated_risk_ids: list[str] = []
     for risk in before.risks:
-        if risk.id not in after_risk_ids:
+        current = after_risks.get(risk.id)
+        if current is None:
             continue
-        mitigation_lower = (risk.mitigation or "").lower()
-        if any(n.lower() in mitigation_lower for n in removed_ctrl_names):
+        removed_reference = bool(set(risk.controls) & removed_ctrl_names)
+        removed_text_control = any(
+            n.lower() in (risk.mitigation or "").lower() for n in removed_ctrl_names
+        )
+        if (
+            (risk.mitigation and not current.mitigation)
+            or removed_reference
+            or removed_text_control
+        ):
             unmitigated_risk_ids.append(risk.id)
 
     # ── Severity ─────────────────────────────────────────────────────────────
@@ -298,7 +306,7 @@ def _compute_severity(
     ]
     if high_crit_changes:
         return "medium"
-    if ci or cc:
+    if ci or cc or not diff.is_empty():
         return "low"
     return "none"
 
@@ -372,7 +380,7 @@ def _build_recommendations(
     if unmitigated:
         ids = ", ".join(unmitigated)
         recs.append(
-            f"Risk(s) {ids} may be unmitigated after control removal. "
+            f"Risk(s) {ids} may be unmitigated after mitigation or control changes. "
             "Update risk mitigations or add replacement controls."
         )
     return recs

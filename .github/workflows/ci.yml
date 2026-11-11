@@ -44,3 +44,11 @@ jobs:
         run: |
           python scripts/generate_js_core.py
           git diff --exit-code docs/zephyr-core.js
+
+      - name: Set up Node for browser core checks
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Check browser diff, references and draft storage
+        run: node tests/browser_core.cjs

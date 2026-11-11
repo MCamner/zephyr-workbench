@@ -211,3 +211,7 @@ __marimo__/
 
 # Review context maps written by mq-mcp build_repo_context (ADR-008)
 generated/architecture/
+
+# Machine-local MCP configuration
+/.mcp.json
+/.cursor/mcp.json

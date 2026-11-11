@@ -53,6 +53,7 @@ class RiskContext:
     affected_components: list[str]
     affected_flows: list[str]
     explanation: str
+    controls: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -319,18 +320,8 @@ def explain_risk(architecture: Architecture, risk_id: str) -> Optional[RiskConte
     if risk is None:
         return None
 
-    _critical_levels = {"high", "mission-critical"}
-    affected_components = [
-        c.name for c in architecture.components if c.criticality in _critical_levels
-    ]
-
-    # Flows that pass through controlled components or are external-facing
-    external_names = {c.name for c in architecture.components if c.exposure == "external"}
-    relevant_flows = [
-        f"{f.source} → {f.target}"
-        for f in architecture.flows
-        if f.source in external_names or not f.encryption or f.encryption == "none"
-    ][:5]
+    affected_components = sorted(set(risk.components))
+    relevant_flows = [f"{f['from']} → {f['to']}" for f in risk.flows]
 
     parts: list[str] = []
     parts.append(f"Severity: {risk.severity}")
@@ -345,9 +336,9 @@ def explain_risk(architecture: Architecture, risk_id: str) -> Optional[RiskConte
     else:
         parts.append("Mitigation: none — this risk is unmitigated")
     if affected_components:
-        parts.append(f"High-criticality components in scope: {', '.join(affected_components)}")
+        parts.append(f"Explicitly affected components: {', '.join(affected_components)}")
     else:
-        parts.append("No high-criticality components declared in this architecture")
+        parts.append("No explicit component references declared for this risk")
 
     return RiskContext(
         risk_id=risk_id,
@@ -358,6 +349,7 @@ def explain_risk(architecture: Architecture, risk_id: str) -> Optional[RiskConte
         mitigation=risk.mitigation,
         affected_components=affected_components,
         affected_flows=relevant_flows,
+        controls=sorted(set(risk.controls)),
         explanation="\n".join(parts),
     )
 

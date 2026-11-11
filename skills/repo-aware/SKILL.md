@@ -28,7 +28,7 @@ Start with the smallest relevant check:
 git status --short
 sed -n '1,220p' README.md
 sed -n '1,220p' pyproject.toml
-find zephyr tests examples docs schemas -maxdepth 2 -type f | sort
+rg --files zephyr tests examples docs schemas
 ```
 
 If CLI behavior matters, inspect `zephyr/cli.py` plus the module behind the command. If model behavior matters, inspect `zephyr/models.py`, `zephyr/datamodel.py`, `zephyr/loader.py`, `zephyr/validation.py`, and tests for the same feature.
@@ -48,7 +48,8 @@ When docs or the browser demo change, also run:
 
 ```bash
 python scripts/generate_js_core.py
-git diff --exit-code docs/zephyr-core.js
+python -m pytest -q tests/test_generate_js.py
+node tests/browser_core.cjs
 ```
 
 ## Guardrails
@@ -58,3 +59,12 @@ git diff --exit-code docs/zephyr-core.js
 - Update tests when changing validation, parsing, rendering, templates, or command output.
 - Do not invent commands, flags, schema fields, or workflow behavior without checking implementation.
 - Keep generated output in `output/` out of scope unless the task explicitly asks for it.
+
+
+## State and browser checks
+
+Runtime memory tests must use a temporary default index; test runs must not mutate tracked
+`.zephyr/memory/index.json`. Compare Git status before and after validation. Browser drafts
+are implemented in `docs/drafts.js` and restored by `docs/index.html`; verify edit → reload
+and storage-error handling when changing persistence. Never use a user's live drafts for
+experiments. See `docs/reviews/2026-11-11-reliability.md` for verified capability boundaries.

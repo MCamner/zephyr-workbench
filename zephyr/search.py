@@ -184,7 +184,8 @@ def search_architecture_data(architecture: Architecture, query: str) -> dict:
         ],
         "risks": [
             {"id": r.id, "title": r.title, "severity": r.severity,
-             "likelihood": r.likelihood or "", "mitigation": r.mitigation or ""}
+             "likelihood": r.likelihood or "", "mitigation": r.mitigation or "",
+             "components": r.components, "flows": r.flows, "controls": r.controls}
             for r in risk_hits
         ],
         "controls": [

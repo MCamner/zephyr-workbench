@@ -29,6 +29,7 @@ const ZephyrCore = (() => {
   // ── Validation ────────────────────────────────────────────────────────────
   function validate(data) {
     const errors = [];
+    if(!data || typeof data !== "object" || Array.isArray(data))return {errors:["Root must be a mapping"],warnings:[]};
     const warnings = [];
 
     // Required top-level
@@ -98,6 +99,21 @@ const ZephyrCore = (() => {
       else if (!SEVERITIES.includes(r.severity)) errors.push(`${loc}.severity '${r.severity}' is invalid`);
       if (r.likelihood && !LIKELIHOODS.includes(r.likelihood)) errors.push(`${loc}.likelihood '${r.likelihood}' is invalid`);
       if (r.impact && !IMPACTS.includes(r.impact)) errors.push(`${loc}.impact '${r.impact}' is invalid`);
+    }
+
+    const controlNames = new Set(controls.filter(c=>c && typeof c.name==="string").map(c=>c.name));
+    for(const r of risks){
+      if(!r || typeof r!=="object")continue;
+      for(const [field,names] of [["components",componentNames],["controls",controlNames]]){
+        const refs=r[field]??[];
+        if(!Array.isArray(refs))errors.push(`risk ${r.id}.${field} must be a list`);
+        else for(const ref of refs)if(typeof ref!=="string"||!names.has(ref))errors.push(`risk ${r.id}.${field}: unknown reference ${JSON.stringify(ref)}`);
+      }
+      if(r.flows!==undefined && !Array.isArray(r.flows))errors.push(`risk ${r.id}.flows must be a list`);
+      else for(const ref of r.flows||[]){
+        if(!ref || typeof ref!=="object" || !flows.some(f=>f && f.from===ref.from && f.to===ref.to && (f.label||"")===(ref.label||"")))
+          errors.push(`risk ${r.id}.flows: unknown reference`);
+      }
     }
 
     // Controls
@@ -214,53 +230,39 @@ const ZephyrCore = (() => {
 
   // ── Diff ──────────────────────────────────────────────────────────────────
   function diffArchitectures(a, b) {
-    const result = { components: [], flows: [], risks: [] };
-
-    const byName = (arr, key="name") => Object.fromEntries((arr||[]).map(x => [x[key], x]));
-
-    // Components
-    const ac = byName(a.components); const bc = byName(b.components);
-    const allC = new Set([...Object.keys(ac), ...Object.keys(bc)]);
-    for (const n of allC) {
-      if (!ac[n]) result.components.push({ op: "added", item: bc[n] });
-      else if (!bc[n]) result.components.push({ op: "removed", item: ac[n] });
-      else {
-        const changes = fieldDiff(ac[n], bc[n], ["type","description","domain","criticality","exposure","lifecycle"]);
-        if (changes.length) result.components.push({ op: "modified", name: n, changes });
+    const result = {};
+    const flowKey = f => JSON.stringify([f.from,f.to,f.label||""]);
+    const sections = {
+      architecture: [[{name:"architecture",value:{name:a.name,description:a.description||"",domains:a.domains||[],rules:a.rules||{}}}], [{name:"architecture",value:{name:b.name,description:b.description||"",domains:b.domains||[],rules:b.rules||{}}}], ["value"]],
+      meta: [a.meta?[{name:"meta",...a.meta}]:[], b.meta?[{name:"meta",...b.meta}]:[], ["owner","version","criticality","environment"]],
+      components: [a.components,b.components,["type","description","domain","criticality","exposure","lifecycle","trust_boundary","tags"]],
+      flows: [(a.flows||[]).map(f=>({...f,name:flowKey(f)})),(b.flows||[]).map(f=>({...f,name:flowKey(f)})),["protocol","authentication","encryption","direction"]],
+      risks: [(a.risks||[]).map(r=>({...r,name:r.id})),(b.risks||[]).map(r=>({...r,name:r.id})),["title","description","severity","likelihood","impact","mitigation","components","flows","controls"]],
+      controls: [a.controls,b.controls,["type","description","applies_to"]],
+      stakeholders: [a.stakeholders,b.stakeholders,["role"]],
+      trust_boundaries: [a.trust_boundaries,b.trust_boundaries,["description","color"]],
+    };
+    for(const [section,[oldItems,newItems,fields]] of Object.entries(sections)){
+      const oldMap=new Map((oldItems||[]).map(x=>[x.name,x]));
+      const newMap=new Map((newItems||[]).map(x=>[x.name,x]));
+      result[section]=[];
+      for(const name of new Set([...oldMap.keys(),...newMap.keys()])){
+        if(!oldMap.has(name))result[section].push({op:"added",item:newMap.get(name)});
+        else if(!newMap.has(name))result[section].push({op:"removed",item:oldMap.get(name)});
+        else{
+          const changes=fieldDiff(oldMap.get(name),newMap.get(name),fields);
+          if(changes.length)result[section].push({op:"modified",name,changes});
+        }
       }
     }
-
-    // Flows
-    const fKey = f => `${f.from}→${f.to}`;
-    const af = byName(a.flows.map(f => ({...f, name: fKey(f)})));
-    const bf = byName(b.flows.map(f => ({...f, name: fKey(f)})));
-    const allF = new Set([...Object.keys(af), ...Object.keys(bf)]);
-    for (const n of allF) {
-      if (!af[n]) result.flows.push({ op: "added", item: bf[n] });
-      else if (!bf[n]) result.flows.push({ op: "removed", item: af[n] });
-      else {
-        const changes = fieldDiff(af[n], bf[n], ["label","protocol","authentication","encryption","direction"]);
-        if (changes.length) result.flows.push({ op: "modified", name: n, changes });
-      }
-    }
-
-    // Risks
-    const ar = byName(a.risks || [], "id"); const br = byName(b.risks || [], "id");
-    const allR = new Set([...Object.keys(ar), ...Object.keys(br)]);
-    for (const n of allR) {
-      if (!ar[n]) result.risks.push({ op: "added", item: br[n] });
-      else if (!br[n]) result.risks.push({ op: "removed", item: ar[n] });
-      else {
-        const changes = fieldDiff(ar[n], br[n], ["title","severity","likelihood","impact","mitigation"]);
-        if (changes.length) result.risks.push({ op: "modified", id: n, changes });
-      }
-    }
-
     return result;
   }
 
-  function fieldDiff(a, b, fields) {
-    return fields.filter(f => (a[f]||"") !== (b[f]||"")).map(f => ({ field: f, from: a[f]||"", to: b[f]||"" }));
+  function fieldDiff(a,b,fields){
+    const value=(item,f)=>item[f] ?? (["tags","components","flows","controls","environment","applies_to"].includes(f)?[]:"");
+    const display=v=>typeof v === "string"?v:JSON.stringify(v);
+    return fields.filter(f=>JSON.stringify(value(a,f))!==JSON.stringify(value(b,f)))
+      .map(f=>({field:f,from:display(value(a,f)),to:display(value(b,f))}));
   }
 
   // ── Templates ─────────────────────────────────────────────────────────────

@@ -9,6 +9,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+image = ["pillow>=10.0"]
 dev = [
   "pillow>=10.0",
   "pytest>=8.0",
