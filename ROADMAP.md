@@ -4,14 +4,14 @@ Zephyr Workbench is evolving into a terminal-native architecture intelligence an
 
 The long-term goal is to support:
 
-- architecture modeling
-- validation
-- architecture cognition
-- diagram generation
-- semantic architecture analysis
-- AI-assisted architecture workflows
-- architecture risk detection
-- infrastructure documentation pipelines
+* architecture modeling
+* validation
+* architecture cognition
+* diagram generation
+* semantic architecture analysis
+* AI-assisted architecture workflows
+* architecture risk detection
+* infrastructure documentation pipelines
 
 ---
 
@@ -28,25 +28,25 @@ Current slice shipped: local keyword architecture memory (`zephyr/memory.py`), n
 
 ## v0.1.1 — Validation Stabilization
 
-- [x] Stronger validation rules
-- [x] Dependency validation
-- [x] Circular dependency detection
-- [x] Trust boundary validation
-- [x] Architecture consistency checks
-- [x] Improved markdown summaries
-- [x] Normalize output formats
-- [x] Mermaid rendering consistency
-- [x] More enterprise examples (Intune + Entra, Citrix + IGEL, Zero Trust)
+* [x] Stronger validation rules
+* [x] Dependency validation
+* [x] Circular dependency detection
+* [x] Trust boundary validation
+* [x] Architecture consistency checks
+* [x] Improved markdown summaries
+* [x] Normalize output formats
+* [x] Mermaid rendering consistency
+* [x] More enterprise examples (Intune + Entra, Citrix + IGEL, Zero Trust)
 
 ---
 
 ## v0.2.0 — Schema Expansion
 
-- [x] Trust boundary support (`trust_boundaries` list, `trust_boundary` on components)
-- [x] Risk scoring (severity × likelihood matrix, computed score in summary)
-- [x] Richer component schema (`tags`, extended fields)
-- [x] Mermaid subgraph rendering per trust boundary
-- [x] Trust boundary validation (unknown reference warnings)
+* [x] Trust boundary support (`trust_boundaries` list, `trust_boundary` on components)
+* [x] Risk scoring (severity × likelihood matrix, computed score in summary)
+* [x] Richer component schema (`tags`, extended fields)
+* [x] Mermaid subgraph rendering per trust boundary
+* [x] Trust boundary validation (unknown reference warnings)
 
 ---
 
@@ -54,16 +54,16 @@ Current slice shipped: local keyword architecture memory (`zephyr/memory.py`), n
 
 Introduce architecture cognition and semantic analysis.
 
-- [x] Semantic architecture search (`has:field`, `no:field` query syntax added to `zephyr search`)
-- [x] Architecture summarization (`narrative_summary()` — prose architectural assessment)
-- [x] Architecture drift detection (dependency insights: external reach, blast radius, isolated components)
-- [x] Architecture comparison (`diff_models` + semantic impact via `analyze_architecture`)
-- [x] Dependency reasoning (`dependency_insights()` — hub components, external reachable sets)
-- [x] Architecture risk analysis (`analyze_risks()` — distribution, unmitigated, incomplete definitions)
-- [x] Rule-based architecture reviews (`review_architecture()` — deterministic findings in severity order)
-- [x] YAML improvement suggestions (`suggest_improvements()` — actionable, prioritized)
-- [x] Risk explanation workflows (`explain_risk()` — contextual risk explanation with affected components)
-- [x] Architecture anti-pattern detection (`detect_antipatterns()` — 7-pattern library)
+* [x] Semantic architecture search (`has:field`, `no:field` query syntax added to `zephyr search`)
+* [x] Architecture summarization (`narrative_summary()` — prose architectural assessment)
+* [x] Architecture drift detection (dependency insights: external reach, blast radius, isolated components)
+* [x] Architecture comparison (`diff_models` + semantic impact via `analyze_architecture`)
+* [x] Dependency reasoning (`dependency_insights()` — hub components, external reachable sets)
+* [x] Architecture risk analysis (`analyze_risks()` — distribution, unmitigated, incomplete definitions)
+* [x] Rule-based architecture reviews (`review_architecture()` — deterministic findings in severity order)
+* [x] YAML improvement suggestions (`suggest_improvements()` — actionable, prioritized)
+* [x] Risk explanation workflows (`explain_risk()` — contextual risk explanation with affected components)
+* [x] Architecture anti-pattern detection (`detect_antipatterns()` — 7-pattern library)
 
 ---
 
@@ -71,24 +71,24 @@ Introduce architecture cognition and semantic analysis.
 
 Make Zephyr easier to call safely from mq-mcp, agents, scripts, and local automation.
 
-- [x] Normalize JSON result envelopes across validation, summary, diagram, diff, and search
-- [x] Add explicit status, errors, warnings, artifacts, and metadata fields to `validate --json` output
-- [x] Ensure CLI output can be consumed without parsing human-oriented terminal text
-- [x] Document read-only tool contracts for architecture inspection
-- [x] Define write-safe contracts for YAML suggestions and generated artifacts
-- [x] Add contract tests for representative valid, warning, and error validation cases
-- [x] Keep human CLI output stable while improving structured output
+* [x] Normalize JSON result envelopes across validation, summary, diagram, diff, and search
+* [x] Add explicit status, errors, warnings, artifacts, and metadata fields to `validate --json` output
+* [x] Ensure CLI output can be consumed without parsing human-oriented terminal text
+* [x] Document read-only tool contracts for architecture inspection
+* [x] Define write-safe contracts for YAML suggestions and generated artifacts
+* [x] Add contract tests for representative valid, warning, and error validation cases
+* [x] Keep human CLI output stable while improving structured output
 
 ### mq-mcp Integration
 
 Expose Zephyr as a safe tool runtime for agents and local MCP clients.
 
-- [x] Stable JSON output contracts for validation, summary, diagram, diff, and search
-- [x] Read-only MCP tools for inspecting architecture models (Python API in runtime.py)
-- [x] Validation-first MCP tool flow: validate → summary/diagram/search
-- [x] Explicit write controls for generated YAML suggestions (contracts.py + requires_write_intent)
-- [x] Tool result schemas that agents can consume without parsing terminal text
-- [x] Guardrails for risky operations: forbidden safety class blocks init/add from agent calls
+* [x] Stable JSON output contracts for validation, summary, diagram, diff, and search
+* [x] Read-only MCP tools for inspecting architecture models (Python API in runtime.py)
+* [x] Validation-first MCP tool flow: validate → summary/diagram/search
+* [x] Explicit write controls for generated YAML suggestions (contracts.py + requires_write_intent)
+* [x] Tool result schemas that agents can consume without parsing terminal text
+* [x] Guardrails for risky operations: forbidden safety class blocks init/add from agent calls
 
 ---
 
@@ -96,9 +96,9 @@ Expose Zephyr as a safe tool runtime for agents and local MCP clients.
 
 Bridge visual architecture and structured architecture models.
 
-- [x] Mermaid reverse parsing
-- [x] draw.io import experiments
-- [x] Bounded raster import: rectangular boxes, OCR labels and straight centered arrows (experimental)
+* [x] Mermaid reverse parsing
+* [x] draw.io import experiments
+* [x] Bounded raster import: rectangular boxes, OCR labels and straight centered arrows (experimental)
 
 ### mq-image-analyze Integration
 
@@ -118,59 +118,58 @@ Mermaid / HTML / report output
 
 ## v0.5.0 — Architecture Review Platform
 
-- [x] Architecture OCR pipelines
-- [x] Component detection from diagrams
-- [x] Architecture scoring
-- [x] Review templates
-- [x] Architecture review reports
-- [x] Architecture lifecycle tracking
-- [x] Change impact analysis
-- [x] Release architecture snapshots
-- [x] Architecture governance workflows
+* [x] Architecture OCR pipelines
+* [x] Component detection from diagrams
+* [x] Architecture scoring
+* [x] Review templates
+* [x] Architecture review reports
+* [x] Architecture lifecycle tracking
+* [x] Change impact analysis
+* [x] Release architecture snapshots
+* [x] Architecture governance workflows
 
 ---
 
 ## v0.6.0 — Semantic Architecture Memory
 
-- [x] Keyword architecture indexing
-- [x] Local architecture keyword memory
-- [x] Architecture history tracking
-- [x] Architecture evolution analysis
-- [x] Cross-project architecture comparison
+* [x] Keyword architecture indexing
+* [x] Local architecture keyword memory
+* [x] Architecture history tracking
+* [x] Architecture evolution analysis
+* [x] Cross-project architecture comparison
 
 ---
 
 ## Reliability improvements (unreleased)
 
-- [x] Complete modeled-field diff including risk scope and trust boundaries
-- [x] Explicit risk references to components, flows and controls
-- [x] Image runtime error envelopes and validation before writing
-- [x] Source freshness reporting and explicit `memory refresh`
-- [x] Typed directed topology similarity with multiplicity and two-hop neighborhoods
-- [x] Contracts covering all current runtime operations and write effects
-- [x] Browser draft persistence, recovery and visible storage errors
-- [x] Isolated memory tests and browser-core regression checks
+* [x] Complete modeled-field diff including risk scope and trust boundaries
+* [x] Explicit risk references to components, flows and controls
+* [x] Image runtime error envelopes and validation before writing
+* [x] Source freshness reporting and explicit `memory refresh`
+* [x] Typed directed topology similarity with multiplicity and two-hop neighborhoods
+* [x] Contracts covering all current runtime operations and write effects
+* [x] Browser draft persistence, recovery and visible storage errors
+* [x] Isolated memory tests and browser-core regression checks
 
 Remaining product limits: keyword search has no embeddings/synonym understanding;
 raster import is bounded and requires manual verification; browser views cover a subset
 of CLI capabilities. No claim of general diagram vision, graph isomorphism or automatic
 compliance certification is made.
 
-
 ## Long-Term Vision
 
 Zephyr Workbench becomes:
 
-- Architecture cognition engine
-- Infrastructure reasoning platform
-- Architecture validation runtime
-- AI-assisted architecture review system
+* Architecture cognition engine
+* Infrastructure reasoning platform
+* Architecture validation runtime
+* AI-assisted architecture review system
 
 **Not:**
 
-- Generic diagram tool
-- GUI-first modeling platform
-- Enterprise bloatware
+* Generic diagram tool
+* GUI-first modeling platform
+* Enterprise bloatware
 
 ---
 
@@ -190,11 +189,11 @@ Zephyr Workbench becomes:
 
 Do NOT build:
 
-- Electron apps or heavy GUI systems
-- Drag-and-drop editors
-- Autonomous architecture generation
-- Black-box AI workflows
-- Cloud-only platform dependencies
+* Electron apps or heavy GUI systems
+* Drag-and-drop editors
+* Autonomous architecture generation
+* Black-box AI workflows
+* Cloud-only platform dependencies
 
 ---
 

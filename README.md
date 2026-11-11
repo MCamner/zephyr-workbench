@@ -19,9 +19,9 @@ Few are validated.
 
 Zephyr models a real enterprise setup — **macOS + Intune + Entra ID + on-prem AD** — and exposes hidden risks instantly.
 
-- Finds failure points
-- Reveals trust gaps
-- Outputs summary + diagram in seconds
+* Finds failure points
+* Reveals trust gaps
+* Outputs summary + diagram in seconds
 
 [View the full case](docs/case-macos-enterprise.md)
 
@@ -62,12 +62,12 @@ Minimal init, end-to-end run, and diagram preview in one short terminal flow.
 
 Zephyr Workbench helps you:
 
-- Describe infrastructure systems in a structured YAML format
-- Validate models before rendering — errors block, warnings inform
-- Generate structured summaries: components, flows, risks, controls, stakeholders
-- Produce Mermaid or HTML diagrams
-- Diff two models to see what changed
-- Search across components, flows, and risks by field value
+* Describe infrastructure systems in a structured YAML format
+* Validate models before rendering — errors block, warnings inform
+* Generate structured summaries: components, flows, risks, controls, stakeholders
+* Produce Mermaid or HTML diagrams
+* Diff two models to see what changed
+* Search across components, flows, and risks by field value
 
 Built for real-world architecture where **identity, endpoints, and trust boundaries matter**.
 
@@ -156,7 +156,6 @@ shapes require manual modeling or Mermaid/draw.io input. Check every import agai
 image. Images of Mermaid/draw.io source text can also be read with OCR.
 Imports always validate the generated model before writing; failures return an error
 and leave the output untouched. See [tool contracts](docs/tool-contracts.md).
-
 
 ## Example output
 
@@ -265,22 +264,21 @@ risks:
 The named components, flow and control must exist in the surrounding model.
 Diffs include descriptions, tags, trust boundaries, mitigation and risk references.
 
-
 ## Validation
 
 **Errors** block the pipeline:
 
-- Missing required fields (`name`, `components`, `flows`)
-- Invalid field values (component type, risk severity, etc.)
-- Duplicate component names or risk IDs
-- Flow references to non-existent components
+* Missing required fields (`name`, `components`, `flows`)
+* Invalid field values (component type, risk severity, etc.)
+* Duplicate component names or risk IDs
+* Flow references to non-existent components
 
 **Warnings** flag risky patterns:
 
-- Endpoint-to-endpoint flows
-- Single access-gateway (SPOF)
-- MFA flow targeting a non-identity component
-- Custom per-model rules via `rules.require`
+* Endpoint-to-endpoint flows
+* Single access-gateway (SPOF)
+* MFA flow targeting a non-identity component
+* Custom per-model rules via `rules.require`
 
 ---
 
@@ -310,10 +308,10 @@ docs/        Case studies and assets
 
 Architecture is usually:
 
-- Fragmented across slides
-- Inconsistent between teams
-- Hard to reason about
-- Difficult to validate before implementation
+* Fragmented across slides
+* Inconsistent between teams
+* Hard to reason about
+* Difficult to validate before implementation
 
 Zephyr makes architecture:
 
@@ -325,10 +323,10 @@ Define once → validate → analyze → visualize → reuse.
 
 ## Philosophy
 
-- Model first, diagram later
-- Structure over slides
-- Simplicity over abstraction
-- Built for real operations
+* Model first, diagram later
+* Structure over slides
+* Simplicity over abstraction
+* Built for real operations
 
 ---
 
